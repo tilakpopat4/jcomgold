@@ -1,3 +1,21 @@
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-analytics.js";
+import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAOIUkyCR_88wGGXb10qmdyK13xWPDSOCU",
+  authDomain: "jccbgold.firebaseapp.com",
+  projectId: "jccbgold",
+  storageBucket: "jccbgold.firebasestorage.app",
+  messagingSenderId: "665851575048",
+  appId: "1:665851575048:web:a823afb8824c80abe14abd",
+  measurementId: "G-KGRPF845CW"
+};
+
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
+const db = getFirestore(app);
+
 // ==================== INITIAL SEED DATA ====================
 const INITIAL_BRANCHES = [
     { code: "99", name: "HEAD OFFICE" },
@@ -20,11 +38,11 @@ const INITIAL_BRANCHES = [
 ];
 
 const INITIAL_PRODUCTS = [
-    { id: "1", code: "GW-3725", minAmt: 0, maxAmt: 50000, rate: 11.00, desc: "Gold Loan up to ₹50,000 (GW-3725) 11.00% FIX" },
-    { id: "2", code: "GW-3725", minAmt: 50001, maxAmt: 100000, rate: 11.50, desc: "Gold Loan ₹50,001 to ₹100,000 (GW-3725) 11.50% FIX" },
-    { id: "3", code: "GD-3524", minAmt: 100001, maxAmt: 200000, rate: 11.50, desc: "Gold Loan ₹100,001 to ₹200,000 (GD-3524) 11.50% FIX" },
-    { id: "4", code: "GNA-3527", minAmt: 200001, maxAmt: 999999999, rate: 11.50, desc: "Gold Loan above ₹200,000 (GNA-3527) 11.50% FIX" },
-    { id: "5", code: "GOD-3553", minAmt: 200001, maxAmt: 999999999, rate: 11.50, desc: "Gold Loan above ₹200,000 (Overdraft) (GOD-3553) 11.50% FIX" }
+    { id: "1", code: "GW-3725", minAmt: 0, maxAmt: 50000, rate: 11.00, desc: "Gold Loan up to â‚¹50,000 (GW-3725) 11.00% FIX" },
+    { id: "2", code: "GW-3725", minAmt: 50001, maxAmt: 100000, rate: 11.50, desc: "Gold Loan â‚¹50,001 to â‚¹100,000 (GW-3725) 11.50% FIX" },
+    { id: "3", code: "GD-3524", minAmt: 100001, maxAmt: 200000, rate: 11.50, desc: "Gold Loan â‚¹100,001 to â‚¹200,000 (GD-3524) 11.50% FIX" },
+    { id: "4", code: "GNA-3527", minAmt: 200001, maxAmt: 999999999, rate: 11.50, desc: "Gold Loan above â‚¹200,000 (GNA-3527) 11.50% FIX" },
+    { id: "5", code: "GOD-3553", minAmt: 200001, maxAmt: 999999999, rate: 11.50, desc: "Gold Loan above â‚¹200,000 (Overdraft) (GOD-3553) 11.50% FIX" }
 ];
 
 const INITIAL_VALUERS = [
@@ -66,8 +84,6 @@ let state = {
     editingLoanId: null
 };
 
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwc_px0IQX27lExLyvFlpnhPg0xJHu8_8_16ULQAzG11RYGuE0bCD3XY5U1Va4XMi21/exec";
-
 let syncCounter = 0;
 function showSync() {
     syncCounter++;
@@ -87,12 +103,15 @@ function hideSync() {
 async function loadState() {
     showSync();
     try {
-        const response = await fetch(GOOGLE_SCRIPT_URL);
-        const data = await response.text();
+        const docRef = doc(db, "jccb", "state");
+        const docSnap = await getDoc(docRef);
         
         let stored = null;
-        if (data && data.trim() !== "" && data.trim() !== "{}") {
-            stored = data;
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            if (Object.keys(data).length > 0) {
+                stored = JSON.stringify(data);
+            }
         }
 
         let localSession = null;
@@ -222,28 +241,13 @@ async function saveState(isBackground = false, throwOnError = false) {
         const stateToUpload = { ...state };
         delete stateToUpload.currentSession;
         delete stateToUpload.editingLoanId;
-        const dataStr = JSON.stringify(stateToUpload);
+        const cleanState = JSON.parse(JSON.stringify(stateToUpload));
+        const docRef = doc(db, "jccb", "state");
         
         if (!isBackground) {
-            const response = await fetch(GOOGLE_SCRIPT_URL, {
-                method: "POST",
-                body: dataStr,
-                headers: {
-                    "Content-Type": "text/plain"
-                }
-            });
-            if (!response.ok) {
-                const errText = await response.text();
-                throw new Error(errText || `HTTP Error ${response.status}`);
-            }
+            await setDoc(docRef, cleanState);
         } else {
-            fetch(GOOGLE_SCRIPT_URL, {
-                method: "POST",
-                body: dataStr,
-                headers: {
-                    "Content-Type": "text/plain"
-                }
-            }).catch(e => console.error("Background state save failed", e));
+            setDoc(docRef, cleanState).catch(e => console.error("Background state save failed", e));
         }
     } catch (e) {
         console.error("Error saving remote state", e);
@@ -625,7 +629,7 @@ function updateDashboardStats() {
     const totalWeight = viewLoans.reduce((sum, item) => sum + parseFloat(item.goldWeight || 0), 0);
     const totalValuers = state.valuers.length;
 
-    totalAmountElem.textContent = `₹${totalAmount.toLocaleString("en-IN")}`;
+    totalAmountElem.textContent = `â‚¹${totalAmount.toLocaleString("en-IN")}`;
     totalAccountsElem.textContent = totalAccounts;
     totalWeightElem.textContent = `${totalWeight.toFixed(3)} g`;
     totalValuersElem.textContent = totalValuers;
@@ -670,7 +674,7 @@ function updateDashboardStats() {
         if (rateVal && rateVal > 1000) {
             state.goldRates[todayStr] = rateVal;
             saveState();
-            alert(`Today's gold rate ₹${rateVal}/10g saved.`);
+            alert(`Today's gold rate â‚¹${rateVal}/10g saved.`);
             updateDashboardStats();
             prepareEntryForm();
         } else {
@@ -698,7 +702,7 @@ function renderDashboardRecentTable(loansList) {
             <td><strong>${loan.accountNo}</strong></td>
             <td>${loan.borrowerName}</td>
             <td><span class="gold-badge">${loan.productCode}</span></td>
-            <td>₹${parseFloat(loan.loanAmount).toLocaleString("en-IN")}</td>
+            <td>â‚¹${parseFloat(loan.loanAmount).toLocaleString("en-IN")}</td>
             <td>Packet #${loan.packetNo}</td>
         `;
         tbody.appendChild(tr);
@@ -938,10 +942,10 @@ function checkGoldRateForDate(dateStr) {
 
     if (rate) {
         rateWarningAlert.classList.add("hidden");
-        valRateDisplay.textContent = `₹${rate.toLocaleString("en-IN")}`;
+        valRateDisplay.textContent = `â‚¹${rate.toLocaleString("en-IN")}`;
     } else {
         rateWarningAlert.classList.remove("hidden");
-        valRateDisplay.textContent = `₹0 (Not Set)`;
+        valRateDisplay.textContent = `â‚¹0 (Not Set)`;
         
         const isHO = (state.currentSession && state.currentSession.code === "99");
         const inlineInput = document.getElementById("inline-gold-rate");
@@ -1084,8 +1088,8 @@ function calculateCharges() {
     const marketValue = Math.round((weight / 10) * marketRate);
     const eligibleAmount = Math.round(marketValue * 0.75);
     
-    document.getElementById("val-market-val-display").textContent = `₹${marketValue.toLocaleString("en-IN")}`;
-    document.getElementById("val-eligible-display").textContent = `₹${eligibleAmount.toLocaleString("en-IN")}`;
+    document.getElementById("val-market-val-display").textContent = `â‚¹${marketValue.toLocaleString("en-IN")}`;
+    document.getElementById("val-eligible-display").textContent = `â‚¹${eligibleAmount.toLocaleString("en-IN")}`;
 
     let ltv = 0;
     if (marketValue > 0) {
@@ -1230,9 +1234,9 @@ function updateTotals() {
     const netDisbursal = Math.max(0, amount - roundedTotalDeductions);
     const roundedNetDisbursal = Math.round(netDisbursal * 100) / 100;
 
-    document.getElementById("summary-sanctioned-amt").textContent = `₹${amount.toLocaleString("en-IN")}`;
-    document.getElementById("summary-deductions-amt").textContent = `₹${roundedTotalDeductions.toLocaleString("en-IN")}`;
-    document.getElementById("summary-net-disbursal").textContent = `₹${roundedNetDisbursal.toLocaleString("en-IN")}`;
+    document.getElementById("summary-sanctioned-amt").textContent = `â‚¹${amount.toLocaleString("en-IN")}`;
+    document.getElementById("summary-deductions-amt").textContent = `â‚¹${roundedTotalDeductions.toLocaleString("en-IN")}`;
+    document.getElementById("summary-net-disbursal").textContent = `â‚¹${roundedNetDisbursal.toLocaleString("en-IN")}`;
 }
 
 function generateNextAccountNumber(schemeCode) {
@@ -1540,10 +1544,10 @@ function renderLoanRegister() {
                 <td>Packet #${loan.packetNo}</td>
                 <td>${loan.borrowerName}</td>
                 <td><small class="gold-badge">${loan.productCode}</small></td>
-                <td>₹${parseFloat(loan.loanAmount).toLocaleString("en-IN")}</td>
+                <td>â‚¹${parseFloat(loan.loanAmount).toLocaleString("en-IN")}</td>
                 <td>${parseFloat(loan.goldWeight).toFixed(3)}g</td>
-                <td>₹${parseFloat(loan.totalCharges).toLocaleString("en-IN")}</td>
-                <td class="bold-text green-color">₹${parseFloat(loan.netDisbursal).toLocaleString("en-IN")}</td>
+                <td>â‚¹${parseFloat(loan.totalCharges).toLocaleString("en-IN")}</td>
+                <td class="bold-text green-color">â‚¹${parseFloat(loan.netDisbursal).toLocaleString("en-IN")}</td>
                 <td>
                     <button class="btn btn-secondary-sm" onclick="openPrintModal('${loan.id}')">
                         <i class="fa-solid fa-print"></i> Print
@@ -1552,7 +1556,7 @@ function renderLoanRegister() {
                 <td>
                     <div class="action-group">
                         ${is3553 ? `
-                            <button class="btn-icon" style="color: #b8860b; font-size: 15px; margin-right: 4px;" title="Print Expense Vouchers / ખર્ચ વાઉચર" onclick="printSingleLoanExpenseVouchers('${loan.id}')">
+                            <button class="btn-icon" style="color: #b8860b; font-size: 15px; margin-right: 4px;" title="Print Expense Vouchers / àª–àª°à«àªš àªµàª¾àª‰àªšàª°" onclick="printSingleLoanExpenseVouchers('${loan.id}')">
                                 <i class="fa-solid fa-receipt"></i>
                             </button>
                         ` : ''}
@@ -2232,7 +2236,7 @@ function loadDailyVouchersSummary() {
             tableHeader.innerHTML = `
                 <th>GL Head / Account Header</th>
                 <th>Account Code</th>
-                <th>Aggregated Sum (₹)</th>
+                <th>Aggregated Sum (â‚¹)</th>
                 <th>Sum in Words</th>
             `;
         }
@@ -2248,7 +2252,7 @@ function loadDailyVouchersSummary() {
             tr.innerHTML = `
                 <td><strong>${v.title}</strong></td>
                 <td><code>${v.code}</code></td>
-                <td class="bold-text">₹${v.amount.toLocaleString("en-IN")}.00</td>
+                <td class="bold-text">â‚¹${v.amount.toLocaleString("en-IN")}.00</td>
                 <td><small class="text-muted">${numberToWords(v.amount)}</small></td>
             `;
             tbody.appendChild(tr);
@@ -2262,7 +2266,7 @@ function loadDailyVouchersSummary() {
             tableHeader.innerHTML = `
                 <th>Loan Account No / Borrower Name</th>
                 <th>Product / Scheme</th>
-                <th>Loan Amount (₹)</th>
+                <th>Loan Amount (â‚¹)</th>
                 <th>Action</th>
             `;
         }
@@ -2279,10 +2283,10 @@ function loadDailyVouchersSummary() {
             tr.innerHTML = `
                 <td><strong>${loan.accountNo}</strong><br><small class="text-muted">${loan.borrowerName}</small></td>
                 <td><small class="gold-badge">${loan.productCode}</small></td>
-                <td class="bold-text">₹${parseFloat(loan.loanAmount).toLocaleString("en-IN")}.00</td>
+                <td class="bold-text">â‚¹${parseFloat(loan.loanAmount).toLocaleString("en-IN")}.00</td>
                 <td>
                     <button class="btn btn-secondary-sm" onclick="printSingleLoanExpenseVouchers('${loan.id}')">
-                        <i class="fa-solid fa-print"></i> Print Expense Vouchers / ખર્ચ વાઉચર પ્રિન્ટ
+                        <i class="fa-solid fa-print"></i> Print Expense Vouchers / àª–àª°à«àªš àªµàª¾àª‰àªšàª° àªªà«àª°àª¿àª¨à«àªŸ
                     </button>
                 </td>
             `;
@@ -2356,7 +2360,7 @@ function printDailyVouchers() {
                         <div>
                             <div style="display:flex; justify-content:space-between; margin-bottom:6px; border-bottom:1.5px solid #000000; padding-bottom:4px;">
                                 <span style="font-weight:800;">Account Header: ${voucher.code}</span>
-                                <span style="font-weight:900; font-size:13.5px;">₹ ${voucher.amount.toLocaleString("en-IN")}.00</span>
+                                <span style="font-weight:900; font-size:13.5px;">â‚¹ ${voucher.amount.toLocaleString("en-IN")}.00</span>
                             </div>
                             <div style="font-size:12px; margin-bottom: 6px;">
                                 <strong>Amount in Words:</strong> <em style="font-weight:700;">${numberToWords(voucher.amount)}</em>
@@ -2435,7 +2439,7 @@ function printSingleLoanExpenseVouchers(loanId) {
     }
 
     if (vouchers.length === 0) {
-        alert("આ લોન માટે કોઈ કપાત કે ખર્ચાઓ નથી.");
+        alert("àª† àª²à«‹àª¨ àª®àª¾àªŸà«‡ àª•à«‹àªˆ àª•àªªàª¾àª¤ àª•à«‡ àª–àª°à«àªšàª¾àª“ àª¨àª¥à«€.");
         return;
     }
 
@@ -2485,7 +2489,7 @@ function printSingleLoanExpenseVouchers(loanId) {
                         <div>
                             <div style="display:flex; justify-content:space-between; margin-bottom:6px; border-bottom:1.5px solid #000000; padding-bottom:4px;">
                                 <span style="font-weight:800;">Account Header: ${voucher.code}</span>
-                                <span style="font-weight:900; font-size:13.5px;">₹ ${voucher.amount.toLocaleString("en-IN")}.00</span>
+                                <span style="font-weight:900; font-size:13.5px;">â‚¹ ${voucher.amount.toLocaleString("en-IN")}.00</span>
                             </div>
                             <div style="font-size:12px; margin-bottom: 6px;">
                                 <strong>Amount in Words:</strong> <em style="font-weight:700;">${numberToWords(voucher.amount)}</em>
@@ -2721,7 +2725,7 @@ function renderProductMasterList() {
 
     state.products.forEach(p => {
         const tr = document.createElement("tr");
-        const limitText = p.maxAmt > 99999999 ? `₹${p.minAmt.toLocaleString("en-IN")} & Above` : `₹${p.minAmt.toLocaleString("en-IN")} to ₹${p.maxAmt.toLocaleString("en-IN")}`;
+        const limitText = p.maxAmt > 99999999 ? `â‚¹${p.minAmt.toLocaleString("en-IN")} & Above` : `â‚¹${p.minAmt.toLocaleString("en-IN")} to â‚¹${p.maxAmt.toLocaleString("en-IN")}`;
         
         tr.innerHTML = `
             <td><strong>${p.code}</strong></td>
@@ -2963,16 +2967,16 @@ function printVoucher(loanId, format) {
                         <div class="print-panel-card">
                             <h4>Gold Evaluation & Valuation</h4>
                             <div class="p-row"><span>Ornaments Weight:</span><span class="p-val">${parseFloat(loan.goldWeight).toFixed(3)} Grams</span></div>
-                            <div class="p-row"><span>Gold Market Rate (/10g):</span><span class="p-val">₹${parseFloat(loan.marketRate).toLocaleString("en-IN")}</span></div>
-                            <div class="p-row"><span>Ornaments Market Value:</span><span class="p-val">₹${parseFloat(loan.marketValue).toLocaleString("en-IN")}</span></div>
-                            <div class="p-row"><span>Max Eligible Loan (75%):</span><span class="p-val">₹${parseFloat(loan.eligibleAmount).toLocaleString("en-IN")}</span></div>
+                            <div class="p-row"><span>Gold Market Rate (/10g):</span><span class="p-val">â‚¹${parseFloat(loan.marketRate).toLocaleString("en-IN")}</span></div>
+                            <div class="p-row"><span>Ornaments Market Value:</span><span class="p-val">â‚¹${parseFloat(loan.marketValue).toLocaleString("en-IN")}</span></div>
+                            <div class="p-row"><span>Max Eligible Loan (75%):</span><span class="p-val">â‚¹${parseFloat(loan.eligibleAmount).toLocaleString("en-IN")}</span></div>
                             <div class="p-row"><span>Ornaments Description:</span><span class="p-val" style="font-size:8px;">${loan.ornamentsDesc}</span></div>
                             <div class="p-row"><span>Authorized Soni Valuer:</span><span class="p-val" style="font-size:8px;">${valuer.name}</span></div>
                         </div>
 
                         <div class="print-panel-card">
                             <h4>Loan Parameters</h4>
-                            <div class="p-row"><span>Sanctioned Amount:</span><span class="p-val" style="font-size:12px;">₹${parseFloat(loan.loanAmount).toLocaleString("en-IN")}</span></div>
+                            <div class="p-row"><span>Sanctioned Amount:</span><span class="p-val" style="font-size:12px;">â‚¹${parseFloat(loan.loanAmount).toLocaleString("en-IN")}</span></div>
                             <div class="p-row"><span>Interest Rate (Fix):</span><span class="p-val">${loan.interestRate}</span></div>
                             <div class="p-row"><span>Valuer Savings A/c No:</span><span class="p-val">${valuer.savingsAc}</span></div>
                             <div class="p-row"><span>Valuer Mobile No:</span><span class="p-val">${valuer.mobile}</span></div>
@@ -2984,54 +2988,54 @@ function printVoucher(loanId, format) {
                         <thead>
                             <tr>
                                 <th>Charge Description</th>
-                                <th>Amount (₹)</th>
+                                <th>Amount (â‚¹)</th>
                                 <th>Charge Description</th>
-                                <th>Amount (₹)</th>
+                                <th>Amount (â‚¹)</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr>
                                 <td>Share Capital (Group A)</td>
-                                <td>₹${parseFloat(loan.shareA).toFixed(2)}</td>
+                                <td>â‚¹${parseFloat(loan.shareA).toFixed(2)}</td>
                                 <td>Service Charges</td>
-                                <td>₹${parseFloat(loan.serviceCharge).toFixed(2)}</td>
+                                <td>â‚¹${parseFloat(loan.serviceCharge).toFixed(2)}</td>
                             </tr>
                             <tr>
                                 <td>Share Capital (Group B)</td>
-                                <td>₹${parseFloat(loan.shareB).toFixed(2)}</td>
+                                <td>â‚¹${parseFloat(loan.shareB).toFixed(2)}</td>
                                 <td>Document Charges</td>
-                                <td>₹${parseFloat(loan.docCharge).toFixed(2)}</td>
+                                <td>â‚¹${parseFloat(loan.docCharge).toFixed(2)}</td>
                             </tr>
                             <tr>
                                 <td>Member Fee</td>
-                                <td>₹${parseFloat(loan.memberFee).toFixed(2)}</td>
+                                <td>â‚¹${parseFloat(loan.memberFee).toFixed(2)}</td>
                                 <td>Insurance Charges</td>
-                                <td>₹${parseFloat(loan.insCharge).toFixed(2)}</td>
+                                <td>â‚¹${parseFloat(loan.insCharge).toFixed(2)}</td>
                             </tr>
                             <tr>
                                 <td>Valuation Fee</td>
-                                <td>₹${parseFloat(loan.valuationCharge).toFixed(2)}</td>
+                                <td>â‚¹${parseFloat(loan.valuationCharge).toFixed(2)}</td>
                                 <td>CGST (9%)</td>
-                                <td>₹${parseFloat(loan.cgst).toFixed(2)}</td>
+                                <td>â‚¹${parseFloat(loan.cgst).toFixed(2)}</td>
                             </tr>
                             <tr>
                                 <td>Stamp Duty</td>
-                                <td>₹${parseFloat(loan.stampCharge).toFixed(2)}</td>
+                                <td>â‚¹${parseFloat(loan.stampCharge).toFixed(2)}</td>
                                 <td>SGST (9%)</td>
-                                <td>₹${parseFloat(loan.sgst).toFixed(2)}</td>
+                                <td>â‚¹${parseFloat(loan.sgst).toFixed(2)}</td>
                             </tr>
                             <tr>
                                 <td>Manual Adjustment</td>
-                                <td>₹${parseFloat(loan.adjustment).toFixed(2)}</td>
+                                <td>â‚¹${parseFloat(loan.adjustment).toFixed(2)}</td>
                                 <td><strong>Total Deductions</strong></td>
-                                <td><strong>₹${parseFloat(loan.totalCharges).toFixed(2)}</strong></td>
+                                <td><strong>â‚¹${parseFloat(loan.totalCharges).toFixed(2)}</strong></td>
                             </tr>
                         </tbody>
                     </table>
 
                     <div class="print-net-banner">
                         <span>Net Loan Disbursal Amount (Net Payable):</span>
-                        <span class="disbursal-num">₹${parseFloat(loan.netDisbursal).toLocaleString("en-IN")}.00</span>
+                        <span class="disbursal-num">â‚¹${parseFloat(loan.netDisbursal).toLocaleString("en-IN")}.00</span>
                     </div>
 
                     <div style="font-size: 8px; line-height: 1.4; border: 1px solid #ddd; padding: 6px; margin-top: 10px;">
@@ -3087,15 +3091,15 @@ function printVoucher(loanId, format) {
                         <div class="print-panel-card" style="padding: 4px 6px;">
                             <h4 style="font-size: 8px; margin-bottom: 2px;">Evaluation Details</h4>
                             <div class="p-row"><span>Gold Weight:</span><span class="p-val">${parseFloat(loan.goldWeight).toFixed(3)}g</span></div>
-                            <div class="p-row"><span>Market Rate:</span><span class="p-val">₹${parseFloat(loan.marketRate)}</span></div>
-                            <div class="p-row"><span>Market Value:</span><span class="p-val">₹${parseFloat(loan.marketValue)}</span></div>
+                            <div class="p-row"><span>Market Rate:</span><span class="p-val">â‚¹${parseFloat(loan.marketRate)}</span></div>
+                            <div class="p-row"><span>Market Value:</span><span class="p-val">â‚¹${parseFloat(loan.marketValue)}</span></div>
                             <div class="p-row"><span>Inspector:</span><span class="p-val" style="font-size:7px;">${valuer.name.substring(0, 18)}</span></div>
                         </div>
 
                         <div class="print-panel-card" style="padding: 4px 6px;">
                             <h4 style="font-size: 8px; margin-bottom: 2px;">Financial Summary & Charges</h4>
-                            <div class="p-row"><span>Sanctioned Amount:</span><span class="p-val">₹${parseFloat(loan.loanAmount).toLocaleString("en-IN")}</span></div>
-                            <div class="p-row"><span>Total Deductions:</span><span class="p-val">₹${parseFloat(loan.totalCharges).toLocaleString("en-IN")}</span></div>
+                            <div class="p-row"><span>Sanctioned Amount:</span><span class="p-val">â‚¹${parseFloat(loan.loanAmount).toLocaleString("en-IN")}</span></div>
+                            <div class="p-row"><span>Total Deductions:</span><span class="p-val">â‚¹${parseFloat(loan.totalCharges).toLocaleString("en-IN")}</span></div>
                             <div class="p-row"><span>Interest Rate:</span><span class="p-val">${loan.interestRate}</span></div>
                             <div class="p-row"><span>Particulars:</span><span class="p-val" style="font-size:7.5px;">${loan.ornamentsDesc.substring(0, 28)}</span></div>
                         </div>
@@ -3103,7 +3107,7 @@ function printVoucher(loanId, format) {
 
                     <div class="print-net-banner-three">
                         <span>Net Loan Disbursed (Net Paid):</span>
-                        <span class="disbursal-num">₹${parseFloat(loan.netDisbursal).toLocaleString("en-IN")}.00</span>
+                        <span class="disbursal-num">â‚¹${parseFloat(loan.netDisbursal).toLocaleString("en-IN")}.00</span>
                     </div>
 
                     <div class="print-signatures-row-three">
@@ -3125,7 +3129,7 @@ function printVoucher(loanId, format) {
     if (format === "application_form") {
         const gujWords = numberToGujaratiWords(loan.loanAmount);
         const ltv = loan.marketValue > 0 ? Math.round((loan.loanAmount / loan.marketValue) * 100) : 0;
-        const gujNums = ['૧', '૨', '૩', '૪', '૫', '૬', '૭', '૮', '૯', '૧૦'];
+        const gujNums = ['à«§', 'à«¨', 'à«©', 'à«ª', 'à««', 'à«¬', 'à«­', 'à«®', 'à«¯', 'à«§à«¦'];
         const is3553 = (loan.productCode === "GOD-3553" || loan.productCode === "3553");
         
         const hasKfsBullet = loan.productCode && (loan.productCode.includes("3725") || loan.productCode.includes("3524"));
@@ -3179,97 +3183,97 @@ function printVoucher(loanId, format) {
                     <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 8px; border-bottom: 1.5px solid #000000; padding-bottom: 8px;">
                         <img src="${LOGO_SRC}" alt="JCCB Logo" style="width: 55px; height: 55px; object-fit: contain; border-radius: 50%; border: 1.5px solid #000000;">
                         <div style="text-align: left;">
-                            <h1 style="font-size: 20px; font-weight: 800; margin: 0; font-family: 'Outfit', 'Noto Sans Gujarati', sans-serif;">ધી જૂનાગઢ કોમર્શિયલ કો-ઓપરેટીવ બેંક લિ.</h1>
-                            <p style="font-size: 14.5px; margin: 2px 0 0 0; font-weight: 700;">હે.ઓ. : "ચંદ્રકાંત માલવિયા સ્મૃતિ ભવન", ચોકસી બજાર, જૂનાગઢ. ૩૬૨૦૦૧</p>
+                            <h1 style="font-size: 20px; font-weight: 800; margin: 0; font-family: 'Outfit', 'Noto Sans Gujarati', sans-serif;">àª§à«€ àªœà«‚àª¨àª¾àª—àª¢ àª•à«‹àª®àª°à«àª¶àª¿àª¯àª² àª•à«‹-àª“àªªàª°à«‡àªŸà«€àªµ àª¬à«‡àª‚àª• àª²àª¿.</h1>
+                            <p style="font-size: 14.5px; margin: 2px 0 0 0; font-weight: 700;">àª¹à«‡.àª“. : "àªšàª‚àª¦à«àª°àª•àª¾àª‚àª¤ àª®àª¾àª²àªµàª¿àª¯àª¾ àª¸à«àª®à«ƒàª¤àª¿ àª­àªµàª¨", àªšà«‹àª•àª¸à«€ àª¬àªœàª¾àª°, àªœà«‚àª¨àª¾àª—àª¢. à«©à«¬à«¨à«¦à«¦à«§</p>
                         </div>
                     </div>
                     <!-- Centered Document Title -->
                     <div style="text-align: center; margin-bottom: 8px;">
-                        <p style="font-size: 15px; font-weight: 800; margin: 4px 0 0 0; text-decoration: underline;">સોનાનાં દાગીનાની જામીનગીરી પર કરજ માંગણીની અરજી</p>
+                        <p style="font-size: 15px; font-weight: 800; margin: 4px 0 0 0; text-decoration: underline;">àª¸à«‹àª¨àª¾àª¨àª¾àª‚ àª¦àª¾àª—à«€àª¨àª¾àª¨à«€ àªœàª¾àª®à«€àª¨àª—à«€àª°à«€ àªªàª° àª•àª°àªœ àª®àª¾àª‚àª—àª£à«€àª¨à«€ àª…àª°àªœà«€</p>
                     </div>
  
                     <!-- Requisition Letter Body in Exact Paragraph Format (with Floated photo) -->
                     <div style="font-size:13.5px; line-height:1.4; text-align:justify; margin-top:5px; min-height:110px;">
                         <div style="border: 2px solid #000000; width: 90px; height: 105px; display: flex; align-items: center; justify-content: center; background-color: #ffffff; overflow: hidden; float: right; margin-left: 15px; margin-bottom: 5px;">
-                            ${loan.custPhoto ? `<img src="${loan.custPhoto}" style="width:100%; height:100%; object-fit:cover;">` : `<span style="font-size:9px; text-align:center; padding:5px; color:#555;">ગ્રાહકનો ફોટો</span>`}
+                            ${loan.custPhoto ? `<img src="${loan.custPhoto}" style="width:100%; height:100%; object-fit:cover;">` : `<span style="font-size:9px; text-align:center; padding:5px; color:#555;">àª—à«àª°àª¾àª¹àª•àª¨à«‹ àª«à«‹àªŸà«‹</span>`}
                         </div>
-                        <p style="margin:0 0 4px 0; font-weight:700;">પ્રતિ,<br>મેનેજરશ્રી,<br>ધી જૂનાગઢ કોમર્શિયલ કો-ઓપરેટીવ બેંક લિ. <br>${loan.branchName} શાખા.</p>
-                        <p style="margin:0 0 4px 0; font-weight:700;">સાહેબશ્રી,</p>
+                        <p style="margin:0 0 4px 0; font-weight:700;">àªªà«àª°àª¤àª¿,<br>àª®à«‡àª¨à«‡àªœàª°àª¶à«àª°à«€,<br>àª§à«€ àªœà«‚àª¨àª¾àª—àª¢ àª•à«‹àª®àª°à«àª¶àª¿àª¯àª² àª•à«‹-àª“àªªàª°à«‡àªŸà«€àªµ àª¬à«‡àª‚àª• àª²àª¿. <br>${loan.branchName} àª¶àª¾àª–àª¾.</p>
+                        <p style="margin:0 0 4px 0; font-weight:700;">àª¸àª¾àª¹à«‡àª¬àª¶à«àª°à«€,</p>
                         
                         <p style="text-indent:20px; margin:0 0 5px 0;">
-                            "સવિનય હું <strong>${loan.borrowerName}</strong> સરનામું <strong>${loan.custAddress || "-"}</strong>, ઉ.વ. <strong>${loan.custAge || "-"}</strong>, ધંધો <strong>${loan.custOccupation || "-"}</strong>, મોબાઇલ નંબર <strong>${loan.custMobile || "-"}</strong>, મેમ્બરશીપ નંબર <strong>${loan.memberNo || "-"}</strong>"
+                            "àª¸àªµàª¿àª¨àª¯ àª¹à«àª‚ <strong>${loan.borrowerName}</strong> àª¸àª°àª¨àª¾àª®à«àª‚ <strong>${loan.custAddress || "-"}</strong>, àª‰.àªµ. <strong>${loan.custAge || "-"}</strong>, àª§àª‚àª§à«‹ <strong>${loan.custOccupation || "-"}</strong>, àª®à«‹àª¬àª¾àª‡àª² àª¨àª‚àª¬àª° <strong>${loan.custMobile || "-"}</strong>, àª®à«‡àª®à«àª¬àª°àª¶à«€àªª àª¨àª‚àª¬àª° <strong>${loan.memberNo || "-"}</strong>"
                         </p>
                         
                         <p style="text-indent:20px; margin:0 0 5px 0;">
-                            "આ સાથે સામેલ વેલ્યુએશન રિપોર્ટ મુજબના મારી માલિકીના સોનાનાં દાગીનાની જામીનગીરી ઉપર રૂ. <strong>${parseFloat(loan.loanAmount).toLocaleString("en-IN")}/-</strong>, નું આપની બેંકમાંથી ધિરાણ <strong>${loan.loanPurpose || "-"}</strong>, ના હેતુ માટે મેળવવા માટે અરજી કરું છું. આથી હું તમો બેંકને ખાતરી અને બાંહેધરી આપું છું કે બેંકને જામીનગીરીમાં આપેલ દાગીના મારી સ્વતંત્ર માલિકીના છે. મેં બેંકના સોનાના દાગીનાની જામીનગીરી પર ધિરાણના નિયમો વાંચ્યા છે જે મને કબુલ-મંજુર છે. વધુમાં હું કબુલ રાખું છું કે રિઝર્વ બેંક ઓફ ઇન્ડિયાની વખ�                    <!-- Location, Date (Left) and Borrower Signature (Right) -->
+                            "àª† àª¸àª¾àª¥à«‡ àª¸àª¾àª®à«‡àª² àªµà«‡àª²à«àª¯à«àªàª¶àª¨ àª°àª¿àªªà«‹àª°à«àªŸ àª®à«àªœàª¬àª¨àª¾ àª®àª¾àª°à«€ àª®àª¾àª²àª¿àª•à«€àª¨àª¾ àª¸à«‹àª¨àª¾àª¨àª¾àª‚ àª¦àª¾àª—à«€àª¨àª¾àª¨à«€ àªœàª¾àª®à«€àª¨àª—à«€àª°à«€ àª‰àªªàª° àª°à«‚. <strong>${parseFloat(loan.loanAmount).toLocaleString("en-IN")}/-</strong>, àª¨à«àª‚ àª†àªªàª¨à«€ àª¬à«‡àª‚àª•àª®àª¾àª‚àª¥à«€ àª§àª¿àª°àª¾àª£ <strong>${loan.loanPurpose || "-"}</strong>, àª¨àª¾ àª¹à«‡àª¤à« àª®àª¾àªŸà«‡ àª®à«‡àª³àªµàªµàª¾ àª®àª¾àªŸà«‡ àª…àª°àªœà«€ àª•àª°à«àª‚ àª›à«àª‚. àª†àª¥à«€ àª¹à«àª‚ àª¤àª®à«‹ àª¬à«‡àª‚àª•àª¨à«‡ àª–àª¾àª¤àª°à«€ àª…àª¨à«‡ àª¬àª¾àª‚àª¹à«‡àª§àª°à«€ àª†àªªà«àª‚ àª›à«àª‚ àª•à«‡ àª¬à«‡àª‚àª•àª¨à«‡ àªœàª¾àª®à«€àª¨àª—à«€àª°à«€àª®àª¾àª‚ àª†àªªà«‡àª² àª¦àª¾àª—à«€àª¨àª¾ àª®àª¾àª°à«€ àª¸à«àªµàª¤àª‚àª¤à«àª° àª®àª¾àª²àª¿àª•à«€àª¨àª¾ àª›à«‡. àª®à«‡àª‚ àª¬à«‡àª‚àª•àª¨àª¾ àª¸à«‹àª¨àª¾àª¨àª¾ àª¦àª¾àª—à«€àª¨àª¾àª¨à«€ àªœàª¾àª®à«€àª¨àª—à«€àª°à«€ àªªàª° àª§àª¿àª°àª¾àª£àª¨àª¾ àª¨àª¿àª¯àª®à«‹ àªµàª¾àª‚àªšà«àª¯àª¾ àª›à«‡ àªœà«‡ àª®àª¨à«‡ àª•àª¬à«àª²-àª®àª‚àªœà«àª° àª›à«‡. àªµàª§à«àª®àª¾àª‚ àª¹à«àª‚ àª•àª¬à«àª² àª°àª¾àª–à«àª‚ àª›à«àª‚ àª•à«‡ àª°àª¿àªàª°à«àªµ àª¬à«‡àª‚àª• àª“àª« àª‡àª¨à«àª¡àª¿àª¯àª¾àª¨à«€ àªµàª–à                    <!-- Location, Date (Left) and Borrower Signature (Right) -->
                     <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:15px; font-size:13.5px;">
                         <div style="text-align:left; font-weight:700; line-height:1.4;">
-                            <div>સ્થળઃ- ${loan.branchName}</div>
-                            <div>તારીખઃ- ${formatDateDMY(loan.date)}</div>
+                            <div>àª¸à«àª¥àª³àªƒ- ${loan.branchName}</div>
+                            <div>àª¤àª¾àª°à«€àª–àªƒ- ${formatDateDMY(loan.date)}</div>
                         </div>
                         <div style="text-align:right;">
                             <div style="display:inline-block; text-align:center;">
                                 <div style="height:50px;"></div> <!-- Signature space -->
                                 <div style="margin-bottom:3px;">X ------------------------------------------</div>
-                                <div style="font-weight:700;">(અરજદારનું નામ: ${loan.borrowerName})</div>
+                                <div style="font-weight:700;">(àª…àª°àªœàª¦àª¾àª°àª¨à«àª‚ àª¨àª¾àª®: ${loan.borrowerName})</div>
                             </div>
                         </div>
-                    </div>માં આપી બેંકને સોંપુ છું."
+                    </div>àª®àª¾àª‚ àª†àªªà«€ àª¬à«‡àª‚àª•àª¨à«‡ àª¸à«‹àª‚àªªà« àª›à«àª‚."
                         </p>
                         
                         <p style="text-indent:20px; margin:0 0 5px 0;">
-                            "વેલ્યુએશન રિપોર્ટમાંદર્શાવેલા તમામ સોનાના દાગીનાઓ શરાફે મારી હાજરીમાંએક સીલબંધ પેકેટ બનાવી, એક કાગળનું લેબલ બનાવી મારી હાજરીમાં બેંકના અધિકારીની અને મારી સહી કરાવી દાગીનાના પેકેટ ઉપર ચોટાડી તૈયાર થયેલ સદર સીલબંધ પેકેટમાંરાખેલ સોનાના દાગીના હું બેંકને થાલમાં આપુંછું."
+                            "àªµà«‡àª²à«àª¯à«àªàª¶àª¨ àª°àª¿àªªà«‹àª°à«àªŸàª®àª¾àª‚àª¦àª°à«àª¶àª¾àªµà«‡àª²àª¾ àª¤àª®àª¾àª® àª¸à«‹àª¨àª¾àª¨àª¾ àª¦àª¾àª—à«€àª¨àª¾àª“ àª¶àª°àª¾àª«à«‡ àª®àª¾àª°à«€ àª¹àª¾àªœàª°à«€àª®àª¾àª‚àªàª• àª¸à«€àª²àª¬àª‚àª§ àªªà«‡àª•à«‡àªŸ àª¬àª¨àª¾àªµà«€, àªàª• àª•àª¾àª—àª³àª¨à«àª‚ àª²à«‡àª¬àª² àª¬àª¨àª¾àªµà«€ àª®àª¾àª°à«€ àª¹àª¾àªœàª°à«€àª®àª¾àª‚ àª¬à«‡àª‚àª•àª¨àª¾ àª…àª§àª¿àª•àª¾àª°à«€àª¨à«€ àª…àª¨à«‡ àª®àª¾àª°à«€ àª¸àª¹à«€ àª•àª°àª¾àªµà«€ àª¦àª¾àª—à«€àª¨àª¾àª¨àª¾ àªªà«‡àª•à«‡àªŸ àª‰àªªàª° àªšà«‹àªŸàª¾àª¡à«€ àª¤à«ˆàª¯àª¾àª° àª¥àª¯à«‡àª² àª¸àª¦àª° àª¸à«€àª²àª¬àª‚àª§ àªªà«‡àª•à«‡àªŸàª®àª¾àª‚àª°àª¾àª–à«‡àª² àª¸à«‹àª¨àª¾àª¨àª¾ àª¦àª¾àª—à«€àª¨àª¾ àª¹à«àª‚ àª¬à«‡àª‚àª•àª¨à«‡ àª¥àª¾àª²àª®àª¾àª‚ àª†àªªà«àª‚àª›à«àª‚."
                         </p>
                         
                         <p style="text-indent:20px; margin:0 0 6px 0;">
-                            "ઉપરાંત આ દાગીનાના વારસદાર તરીકે હું <strong>${loan.custNomineeName || "-"}</strong> સંબંધે <strong>${loan.custNomineeRelation || "-"}</strong> ની નિમણુંક કરું છું."
+                            "àª‰àªªàª°àª¾àª‚àª¤ àª† àª¦àª¾àª—à«€àª¨àª¾àª¨àª¾ àªµàª¾àª°àª¸àª¦àª¾àª° àª¤àª°à«€àª•à«‡ àª¹à«àª‚ <strong>${loan.custNomineeName || "-"}</strong> àª¸àª‚àª¬àª‚àª§à«‡ <strong>${loan.custNomineeRelation || "-"}</strong> àª¨à«€ àª¨àª¿àª®àª£à«àª‚àª• àª•àª°à«àª‚ àª›à«àª‚."
                         </p>
                     </div>
  
                     <!-- Location, Date (Left) and Borrower Signature (Right) -->
                     <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top:15px; font-size:13.5px;">
                         <div style="text-align:left; font-weight:700; line-height:1.4;">
-                            <div>સ્થળઃ- ${loan.branchName}</div>
-                            <div>તારીખઃ- ${formatDateDMY(loan.date)}</div>
+                            <div>àª¸à«àª¥àª³àªƒ- ${loan.branchName}</div>
+                            <div>àª¤àª¾àª°à«€àª–àªƒ- ${formatDateDMY(loan.date)}</div>
                         </div>
                         <div style="text-align:right;">
                             <div style="display:inline-block; text-align:left;">
                                 <div style="height:50px;"></div> <!-- Signature space -->
                                 <div style="margin-bottom:3px;">X ------------------------------------------</div>
-                                <div style="font-weight:700;">સહી: (${loan.borrowerName})</div>
+                                <div style="font-weight:700;">àª¸àª¹à«€: (${loan.borrowerName})</div>
                             </div>
                         </div>
                     </div>
  
-                    <!-- Office Verification Block (ઓફિસ શેરો) -->
+                    <!-- Office Verification Block (àª“àª«àª¿àª¸ àª¶à«‡àª°à«‹) -->
                     <div style="margin-top:10px; padding-top:6px;">
                         <div style="display:flex; align-items:center; text-align:center; margin-bottom:8px; font-family:'Outfit', 'Noto Sans Gujarati', sans-serif;">
                             <div style="flex:1; border-bottom:1.5px solid #000000; margin-right:15px;"></div>
-                            <span style="font-weight:800; font-size:14px; white-space:nowrap; letter-spacing:1px; color:#000000;">ઓફિસ શેરો</span>
+                            <span style="font-weight:800; font-size:14px; white-space:nowrap; letter-spacing:1px; color:#000000;">àª“àª«àª¿àª¸ àª¶à«‡àª°à«‹</span>
                             <div style="flex:1; border-bottom:1.5px solid #000000; margin-left:15px;"></div>
                         </div>
                         
                         <table style="width:100%; border-collapse:collapse; margin-bottom:6px; font-size:13px; border:1.5px solid #000000;">
                             <tr style="border-bottom:1.5px solid #000000;">
-                                <td style="padding:3px 6px; font-weight:700; border-right:1.5px solid #000000; width:45%;">ખાતા નંબર (ખાતા નો પ્રકાર અને ખાતા નંબર લેવા):</td>
+                                <td style="padding:3px 6px; font-weight:700; border-right:1.5px solid #000000; width:45%;">àª–àª¾àª¤àª¾ àª¨àª‚àª¬àª° (àª–àª¾àª¤àª¾ àª¨à«‹ àªªà«àª°àª•àª¾àª° àª…àª¨à«‡ àª–àª¾àª¤àª¾ àª¨àª‚àª¬àª° àª²à«‡àªµàª¾):</td>
                                 <td style="padding:3px 6px; font-weight:700;">${loan.accountNo || "-"}</td>
                             </tr>
                             <tr style="border-bottom:1.5px solid #000000;">
-                                <td style="padding:3px 6px; font-weight:700; border-right:1.5px solid #000000;">પેકેટ નંબરઃ-</td>
+                                <td style="padding:3px 6px; font-weight:700; border-right:1.5px solid #000000;">àªªà«‡àª•à«‡àªŸ àª¨àª‚àª¬àª°àªƒ-</td>
                                 <td style="padding:3px 6px; font-weight:700;">#${loan.packetNo || "-"}</td>
                             </tr>
                             <tr>
-                                <td style="padding:3px 6px; font-weight:700; border-right:1.5px solid #000000;">સેવિંગ ખાતા નંબરઃ-</td>
+                                <td style="padding:3px 6px; font-weight:700; border-right:1.5px solid #000000;">àª¸à«‡àªµàª¿àª‚àª— àª–àª¾àª¤àª¾ àª¨àª‚àª¬àª°àªƒ-</td>
                                 <td style="padding:3px 6px; font-weight:700;">${loan.custSavingsAc || "-"}</td>
                             </tr>
                         </table>
  
                         <p style="text-indent:20px; font-size:13.5px; line-height:1.4; text-align:justify; margin:6px 0;">
-                            "વેલ્યુએશન રિપોર્ટમાં દર્શાવ્યા મુજબના સોનાનાં દાગીના થાલમાં લઈને તેનીકુલ કિંમત રૂ. <strong>${parseFloat(loan.marketValue).toLocaleString("en-IN")}/-</strong> ના <strong>${ltv}%</strong> લેખે ધિરાણની રકમ રૂ. <strong>${parseFloat(loan.loanAmount).toLocaleString("en-IN")}/-</strong> અંકે રકમ રૂ. <strong>${gujWords}</strong> નો બેંકના સોનાના દાગીના સામે ધિરાણના નિયમાનુસાર ચુકાદો કરવાની મંજુરી આપવામાં આવે છે. આજરોજ ઉપરોક્ત દાગીનાનું સીલબંધ પેકેટ અરજદાર પાસેથી સંભાળી લૉકરમાં મુકેલ છે."
+                            "àªµà«‡àª²à«àª¯à«àªàª¶àª¨ àª°àª¿àªªà«‹àª°à«àªŸàª®àª¾àª‚ àª¦àª°à«àª¶àª¾àªµà«àª¯àª¾ àª®à«àªœàª¬àª¨àª¾ àª¸à«‹àª¨àª¾àª¨àª¾àª‚ àª¦àª¾àª—à«€àª¨àª¾ àª¥àª¾àª²àª®àª¾àª‚ àª²àªˆàª¨à«‡ àª¤à«‡àª¨à«€àª•à«àª² àª•àª¿àª‚àª®àª¤ àª°à«‚. <strong>${parseFloat(loan.marketValue).toLocaleString("en-IN")}/-</strong> àª¨àª¾ <strong>${ltv}%</strong> àª²à«‡àª–à«‡ àª§àª¿àª°àª¾àª£àª¨à«€ àª°àª•àª® àª°à«‚. <strong>${parseFloat(loan.loanAmount).toLocaleString("en-IN")}/-</strong> àª…àª‚àª•à«‡ àª°àª•àª® àª°à«‚. <strong>${gujWords}</strong> àª¨à«‹ àª¬à«‡àª‚àª•àª¨àª¾ àª¸à«‹àª¨àª¾àª¨àª¾ àª¦àª¾àª—à«€àª¨àª¾ àª¸àª¾àª®à«‡ àª§àª¿àª°àª¾àª£àª¨àª¾ àª¨àª¿àª¯àª®àª¾àª¨à«àª¸àª¾àª° àªšà«àª•àª¾àª¦à«‹ àª•àª°àªµàª¾àª¨à«€ àª®àª‚àªœà«àª°à«€ àª†àªªàªµàª¾àª®àª¾àª‚ àª†àªµà«‡ àª›à«‡. àª†àªœàª°à«‹àªœ àª‰àªªàª°à«‹àª•à«àª¤ àª¦àª¾àª—à«€àª¨àª¾àª¨à«àª‚ àª¸à«€àª²àª¬àª‚àª§ àªªà«‡àª•à«‡àªŸ àª…àª°àªœàª¦àª¾àª° àªªàª¾àª¸à«‡àª¥à«€ àª¸àª‚àª­àª¾àª³à«€ àª²à«‰àª•àª°àª®àª¾àª‚ àª®à«àª•à«‡àª² àª›à«‡."
                         </p>
  
                         <div style="font-weight:700; font-size:13.5px; margin-top:4px; margin-bottom:10px;">
-                            તારીખઃ- ${formatDateDMY(loan.date)}
+                            àª¤àª¾àª°à«€àª–àªƒ- ${formatDateDMY(loan.date)}
                         </div>
  
                         <!-- Sign-off blocks for Clerks & Managers -->
@@ -3277,12 +3281,12 @@ function printVoucher(loanId, format) {
                             <div style="width:40%; text-align:center;">
                                 <div style="height:50px;"></div> <!-- Signature space -->
                                 <div style="margin-bottom:3px;">X..........................................................................</div>
-                                <div style="font-size:12px; font-weight:600;">સહી: (લોન ઓફિસર)</div>
+                                <div style="font-size:12px; font-weight:600;">àª¸àª¹à«€: (àª²à«‹àª¨ àª“àª«àª¿àª¸àª°)</div>
                             </div>
                             <div style="width:40%; text-align:center;">
                                 <div style="height:50px;"></div> <!-- Signature space -->
                                 <div style="margin-bottom:3px;">X..........................................................................</div>
-                                <div style="font-size:12px; font-weight:600;">સહી: (શાખા પ્રબંધક)</div>
+                                <div style="font-size:12px; font-weight:600;">àª¸àª¹à«€: (àª¶àª¾àª–àª¾ àªªà«àª°àª¬àª‚àª§àª•)</div>
                             </div>
                         </div>
                     </div>
@@ -3296,50 +3300,50 @@ function printVoucher(loanId, format) {
                     <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 8px; border-bottom: 1.5px solid #000000; padding-bottom: 8px;">
                         <img src="${LOGO_SRC}" alt="JCCB Logo" style="width: 55px; height: 55px; object-fit: contain; border-radius: 50%; border: 1.5px solid #000000;">
                         <div style="text-align: left;">
-                            <h1 style="font-size: 20px; font-weight: 800; margin: 0; font-family: 'Outfit', 'Noto Sans Gujarati', sans-serif;">ધી જૂનાગઢ કોમર્શિયલ કો-ઓપરેટીવ બેંક લિ.</h1>
-                            <p style="font-size: 14.5px; margin: 2px 0 0 0; font-weight: 700;">હે.ઓ. : "ચંદ્રકાંત માલવિયા સ્મૃતિ ભવન", ચોકસી બજાર, જૂનાગઢ. ૩૬૨૦૦૧</p>
+                            <h1 style="font-size: 20px; font-weight: 800; margin: 0; font-family: 'Outfit', 'Noto Sans Gujarati', sans-serif;">àª§à«€ àªœà«‚àª¨àª¾àª—àª¢ àª•à«‹àª®àª°à«àª¶àª¿àª¯àª² àª•à«‹-àª“àªªàª°à«‡àªŸà«€àªµ àª¬à«‡àª‚àª• àª²àª¿.</h1>
+                            <p style="font-size: 14.5px; margin: 2px 0 0 0; font-weight: 700;">àª¹à«‡.àª“. : "àªšàª‚àª¦à«àª°àª•àª¾àª‚àª¤ àª®àª¾àª²àªµàª¿àª¯àª¾ àª¸à«àª®à«ƒàª¤àª¿ àª­àªµàª¨", àªšà«‹àª•àª¸à«€ àª¬àªœàª¾àª°, àªœà«‚àª¨àª¾àª—àª¢. à«©à«¬à«¨à«¦à«¦à«§</p>
                         </div>
                     </div>
 
                     <!-- Header Address (with floated Gold Ornament photo) -->
                     <div style="font-size:13.5px; line-height:1.4; text-align:justify; margin-top:5px; min-height:2.1in;">
                         <div style="border: 2px solid #000000; width: 4in; height: 2in; display: flex; align-items: center; justify-content: center; background-color: #ffffff; overflow: hidden; float: right; margin-left: 15px; margin-bottom: 5px;">
-                            ${loan.goldPhoto ? `<img src="${loan.goldPhoto}" style="width:100%; height:100%; object-fit:contain;">` : `<span style="font-size:9px; text-align:center; padding:5px; color:#555;">દાગીનાનો ફોટો</span>`}
+                            ${loan.goldPhoto ? `<img src="${loan.goldPhoto}" style="width:100%; height:100%; object-fit:contain;">` : `<span style="font-size:9px; text-align:center; padding:5px; color:#555;">àª¦àª¾àª—à«€àª¨àª¾àª¨à«‹ àª«à«‹àªŸà«‹</span>`}
                         </div>
-                        <p style="margin:0 0 4px 0; font-weight:700;">પ્રતિ,<br>મેનેજરશ્રી,<br>ધી જૂનાગઢ કોમર્શીયલ કો-ઓપરેટીવ બેંક લી. <br>${loan.branchName} શાખા.</p>
-                        <p style="margin:0 0 4px 0; font-weight:700;">સાહેબશ્રી,</p>
+                        <p style="margin:0 0 4px 0; font-weight:700;">àªªà«àª°àª¤àª¿,<br>àª®à«‡àª¨à«‡àªœàª°àª¶à«àª°à«€,<br>àª§à«€ àªœà«‚àª¨àª¾àª—àª¢ àª•à«‹àª®àª°à«àª¶à«€àª¯àª² àª•à«‹-àª“àªªàª°à«‡àªŸà«€àªµ àª¬à«‡àª‚àª• àª²à«€. <br>${loan.branchName} àª¶àª¾àª–àª¾.</p>
+                        <p style="margin:0 0 4px 0; font-weight:700;">àª¸àª¾àª¹à«‡àª¬àª¶à«àª°à«€,</p>
                         <p style="margin:0 0 6px 0;">
-                            હું <strong>${loan.borrowerName}</strong>, રહેવાસીઃ- <strong>${loan.custAddress || "-"}</strong>,
+                            àª¹à«àª‚ <strong>${loan.borrowerName}</strong>, àª°àª¹à«‡àªµàª¾àª¸à«€àªƒ- <strong>${loan.custAddress || "-"}</strong>,
                         </p>
                     </div>
 
                     <!-- Market Rate Display (Centered, Large) -->
                     <div style="text-align:center; font-weight:800; font-size:14.5px; margin: 4px 0; color:#000000; font-family:'Outfit', 'Noto Sans Gujarati', sans-serif;">
-                        આજનો બજાર ભાવ રૂ. <strong>${parseFloat(loan.marketRate).toLocaleString("en-IN")}/-</strong> 10 ગ્રામ શુધ્ધ સોનાનો ભાવ
+                        àª†àªœàª¨à«‹ àª¬àªœàª¾àª° àª­àª¾àªµ àª°à«‚. <strong>${parseFloat(loan.marketRate).toLocaleString("en-IN")}/-</strong> 10 àª—à«àª°àª¾àª® àª¶à«àª§à«àª§ àª¸à«‹àª¨àª¾àª¨à«‹ àª­àª¾àªµ
                     </div>
  
                     <!-- Valuation Report Header (Centered, Large) -->
                     <div style="text-align:center; font-weight:800; font-size:14.5px; margin: 4px 0; text-decoration:underline; color:#000000; font-family:'Outfit', 'Noto Sans Gujarati', sans-serif;">
-                        સોનાનાં દાગીનાનો વેલ્યુએશન રિપોર્ટ
+                        àª¸à«‹àª¨àª¾àª¨àª¾àª‚ àª¦àª¾àª—à«€àª¨àª¾àª¨à«‹ àªµà«‡àª²à«àª¯à«àªàª¶àª¨ àª°àª¿àªªà«‹àª°à«àªŸ
                     </div>
  
                     <!-- Ornaments Table (10 Blank Rows + Total Row) -->
                     <table style="width:100%; border-collapse:collapse; margin:4px 0; font-size:11.5px; border:1.5px solid #000000; text-align:center; color:#000000;">
                         <thead>
                             <tr style="border-bottom:1.5px solid #000000; background-color:#f5f5f5; font-weight:700; height:24px;">
-                                <th style="border-right:1.5px solid #000000; padding:3px; font-weight:800; width:5%;" rowspan="2">ક્રમ</th>
-                                <th style="border-right:1.5px solid #000000; padding:3px; font-weight:800; width:27%;" rowspan="2">દાગીનાની વિગત</th>
-                                <th style="border-right:1.5px solid #000000; padding:3px; font-weight:800; width:8%;" rowspan="2">નંગ</th>
-                                <th style="border-right:1.5px solid #000000; padding:3px; font-weight:800; width:18%;" colspan="2">ગ્રોસ વજન</th>
-                                <th style="border-right:1.5px solid #000000; padding:3px; font-weight:800; width:18%;" colspan="2">નેટ વજન</th>
-                                <th style="border-right:1.5px solid #000000; padding:3px; font-weight:800; width:12%;" rowspan="2">શુદ્ધતા કેરેટમાં</th>
-                                <th style="padding:3px; font-weight:800; width:12%;" rowspan="2">કિંમત રૂ.</th>
+                                <th style="border-right:1.5px solid #000000; padding:3px; font-weight:800; width:5%;" rowspan="2">àª•à«àª°àª®</th>
+                                <th style="border-right:1.5px solid #000000; padding:3px; font-weight:800; width:27%;" rowspan="2">àª¦àª¾àª—à«€àª¨àª¾àª¨à«€ àªµàª¿àª—àª¤</th>
+                                <th style="border-right:1.5px solid #000000; padding:3px; font-weight:800; width:8%;" rowspan="2">àª¨àª‚àª—</th>
+                                <th style="border-right:1.5px solid #000000; padding:3px; font-weight:800; width:18%;" colspan="2">àª—à«àª°à«‹àª¸ àªµàªœàª¨</th>
+                                <th style="border-right:1.5px solid #000000; padding:3px; font-weight:800; width:18%;" colspan="2">àª¨à«‡àªŸ àªµàªœàª¨</th>
+                                <th style="border-right:1.5px solid #000000; padding:3px; font-weight:800; width:12%;" rowspan="2">àª¶à«àª¦à«àª§àª¤àª¾ àª•à«‡àª°à«‡àªŸàª®àª¾àª‚</th>
+                                <th style="padding:3px; font-weight:800; width:12%;" rowspan="2">àª•àª¿àª‚àª®àª¤ àª°à«‚.</th>
                             </tr>
                             <tr style="border-bottom:1.5px solid #000000; background-color:#f5f5f5; font-weight:700; height:20px;">
-                                <th style="border-right:1.5px solid #000000; padding:2px; font-weight:800; font-size:10px;">ગ્રામ</th>
-                                <th style="border-right:1.5px solid #000000; padding:2px; font-weight:800; font-size:10px;">મી.ગ્રા.</th>
-                                <th style="border-right:1.5px solid #000000; padding:2px; font-weight:800; font-size:10px;">ગ્રામ</th>
-                                <th style="border-right:1.5px solid #000000; padding:2px; font-weight:800; font-size:10px;">મી.ગ્રા.</th>
+                                <th style="border-right:1.5px solid #000000; padding:2px; font-weight:800; font-size:10px;">àª—à«àª°àª¾àª®</th>
+                                <th style="border-right:1.5px solid #000000; padding:2px; font-weight:800; font-size:10px;">àª®à«€.àª—à«àª°àª¾.</th>
+                                <th style="border-right:1.5px solid #000000; padding:2px; font-weight:800; font-size:10px;">àª—à«àª°àª¾àª®</th>
+                                <th style="border-right:1.5px solid #000000; padding:2px; font-weight:800; font-size:10px;">àª®à«€.àª—à«àª°àª¾.</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -3357,7 +3361,7 @@ function printVoucher(loanId, format) {
                             </tr>
                             `).join('')}
                             <tr style="font-weight:800; background-color:#f5f5f5; height:25px;">
-                                <td style="border-right:1.5px solid #000000; padding:2px;" colspan="3">કુલ (Total)</td>
+                                <td style="border-right:1.5px solid #000000; padding:2px;" colspan="3">àª•à«àª² (Total)</td>
                                 <td style="border-right:1.5px solid #000000; padding:2px;"></td>
                                 <td style="border-right:1.5px solid #000000; padding:2px;"></td>
                                 <td style="border-right:1.5px solid #000000; padding:2px;"></td>
@@ -3370,18 +3374,18 @@ function printVoucher(loanId, format) {
  
                     <div style="text-align:right; font-size:13px; margin-top:2px; margin-bottom:2px;">
                         <div style="height:20px;"></div> <!-- Signature space -->
-                        <div style="margin-bottom:2px;">વેલ્યુઅરની સહી: X........................................</div>
+                        <div style="margin-bottom:2px;">àªµà«‡àª²à«àª¯à«àª…àª°àª¨à«€ àª¸àª¹à«€: X........................................</div>
                         <div style="font-weight:700; padding-right:20px;">(${valuer.name})</div>
                     </div>
  
                     <!-- Borrower Acceptance of Valuation -->
                     <p style="font-size:12px; line-height:1.35; text-align:justify; margin:2px 0;">
-                        "ઉપરોક્ત વિગતે વેલ્યુઅરે જે શુદ્ધતા, વજન, દર, કિંમત આકારેલ છે તે વાજબી છે અને મને કબૂલ-મંજુર છે."
+                        "àª‰àªªàª°à«‹àª•à«àª¤ àªµàª¿àª—àª¤à«‡ àªµà«‡àª²à«àª¯à«àª…àª°à«‡ àªœà«‡ àª¶à«àª¦à«àª§àª¤àª¾, àªµàªœàª¨, àª¦àª°, àª•àª¿àª‚àª®àª¤ àª†àª•àª¾àª°à«‡àª² àª›à«‡ àª¤à«‡ àªµàª¾àªœàª¬à«€ àª›à«‡ àª…àª¨à«‡ àª®àª¨à«‡ àª•àª¬à«‚àª²-àª®àª‚àªœà«àª° àª›à«‡."
                     </p>
  
                     <div style="text-align:right; font-size:13px; margin-top:2px; margin-bottom:2px;">
                         <div style="height:20px;"></div> <!-- Signature space -->
-                        <div style="margin-bottom:2px;">અરજદારની સહી: X........................................</div>
+                        <div style="margin-bottom:2px;">àª…àª°àªœàª¦àª¾àª°àª¨à«€ àª¸àª¹à«€: X........................................</div>
                         <div style="font-weight:700; padding-right:20px;">(${loan.borrowerName})</div>
                     </div>
  
@@ -3390,18 +3394,18 @@ function printVoucher(loanId, format) {
  
                     <!-- Demand Promissory Note Header (Centered, Large) -->
                     <div style="text-align:center; font-weight:800; font-size:13.5px; margin: 0; text-decoration:underline; color:#000000; font-family:'Outfit', 'Noto Sans Gujarati', sans-serif;">
-                        ડિમાન્ડ પ્રોમિસરી નોટ – વચન ચિઠ્ઠી
+                        àª¡àª¿àª®àª¾àª¨à«àª¡ àªªà«àª°à«‹àª®àª¿àª¸àª°à«€ àª¨à«‹àªŸ â€“ àªµàªšàª¨ àªšàª¿àª à«àª à«€
                     </div>
  
                     <!-- Promissory Note Text -->
                     <p style="text-indent:20px; font-size:12.5px; line-height:1.35; text-align:justify; margin-bottom:2px;">
-                        "હું <strong>${loan.borrowerName}</strong>, આજરોજ મને મળેલા અવેજ બદલ રૂ. <strong>${parseFloat(loan.loanAmount).toLocaleString("en-IN")}/-</strong>, અંકે રૂપિયા <strong>${gujWords}</strong>, <strong>${loan.interestRate}</strong>, માસિક ચક્રવૃદ્ધિ વ્યાજ ગણતરી અનુસાર વાર્ષિક વ્યાજ દરે ચડત વ્યાજની રકમ સહીત જયારે માંગો ત્યારે ધી જૂનાગઢ કોમર્શિયલ કો-ઓપરેટીવ બેંક લિ. <strong>${loan.branchName}</strong> જુનાગઢ અથવા તેનાં આદેશ અનુસાર તેની કોઈપણ શાખામાં ચૂકવી આપવાનું વચન આપું છું."
+                        "àª¹à«àª‚ <strong>${loan.borrowerName}</strong>, àª†àªœàª°à«‹àªœ àª®àª¨à«‡ àª®àª³à«‡àª²àª¾ àª…àªµà«‡àªœ àª¬àª¦àª² àª°à«‚. <strong>${parseFloat(loan.loanAmount).toLocaleString("en-IN")}/-</strong>, àª…àª‚àª•à«‡ àª°à«‚àªªàª¿àª¯àª¾ <strong>${gujWords}</strong>, <strong>${loan.interestRate}</strong>, àª®àª¾àª¸àª¿àª• àªšàª•à«àª°àªµà«ƒàª¦à«àª§àª¿ àªµà«àª¯àª¾àªœ àª—àª£àª¤àª°à«€ àª…àª¨à«àª¸àª¾àª° àªµàª¾àª°à«àª·àª¿àª• àªµà«àª¯àª¾àªœ àª¦àª°à«‡ àªšàª¡àª¤ àªµà«àª¯àª¾àªœàª¨à«€ àª°àª•àª® àª¸àª¹à«€àª¤ àªœàª¯àª¾àª°à«‡ àª®àª¾àª‚àª—à«‹ àª¤à«àª¯àª¾àª°à«‡ àª§à«€ àªœà«‚àª¨àª¾àª—àª¢ àª•à«‹àª®àª°à«àª¶àª¿àª¯àª² àª•à«‹-àª“àªªàª°à«‡àªŸà«€àªµ àª¬à«‡àª‚àª• àª²àª¿. <strong>${loan.branchName}</strong> àªœà«àª¨àª¾àª—àª¢ àª…àª¥àªµàª¾ àª¤à«‡àª¨àª¾àª‚ àª†àª¦à«‡àª¶ àª…àª¨à«àª¸àª¾àª° àª¤à«‡àª¨à«€ àª•à«‹àªˆàªªàª£ àª¶àª¾àª–àª¾àª®àª¾àª‚ àªšà«‚àª•àªµà«€ àª†àªªàªµàª¾àª¨à«àª‚ àªµàªšàª¨ àª†àªªà«àª‚ àª›à«àª‚."
                     </p>
  
                     <!-- Location and Date -->
                     <div style="text-align:left; font-weight:700; line-height:1.35; font-size:13px; margin-top:0; margin-bottom:0;">
-                        <div>સ્થળઃ- ${loan.branchName}</div>
-                        <div>તારીખઃ- ${formatDateDMY(loan.date)}</div>
+                        <div>àª¸à«àª¥àª³àªƒ- ${loan.branchName}</div>
+                        <div>àª¤àª¾àª°à«€àª–àªƒ- ${formatDateDMY(loan.date)}</div>
                     </div>
  
                     <!-- Double Signatures for borrower at the bottom (Revenue stamp on right) -->
@@ -3409,15 +3413,15 @@ function printVoucher(loanId, format) {
                         <div style="width:45%; text-align:center; padding-bottom:0;">
                             <div style="height:20px;"></div> <!-- Signature space -->
                             <div style="margin-bottom:2px;">X....................................................</div>
-                            <div style="font-size:12px; font-weight:600;">(અરજદારનું નામ: ${loan.borrowerName})</div>
+                            <div style="font-size:12px; font-weight:600;">(àª…àª°àªœàª¦àª¾àª°àª¨à«àª‚ àª¨àª¾àª®: ${loan.borrowerName})</div>
                         </div>
                         <div style="width:45%; text-align:center; display:flex; flex-direction:column; align-items:center;">
                             <div style="border: 1.5px dashed #000000; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; background-color: #ffffff; text-align:center; font-size:9.0px; font-weight:700; padding:2px; margin-bottom:2px;">
-                                રેવન્યુ સ્ટેમ્પ
+                                àª°à«‡àªµàª¨à«àª¯à« àª¸à«àªŸà«‡àª®à«àªª
                             </div>
                             <div style="width:100%;">
                                 <div style="margin-bottom:2px;">X....................................................</div>
-                                <div style="font-size:12px; font-weight:600;">(અરજદારનું નામ: ${loan.borrowerName})</div>
+                                <div style="font-size:12px; font-weight:600;">(àª…àª°àªœàª¦àª¾àª°àª¨à«àª‚ àª¨àª¾àª®: ${loan.borrowerName})</div>
                             </div>
                         </div>
                     </div>
@@ -3427,8 +3431,8 @@ function printVoucher(loanId, format) {
                 <div class="${((!is3553 && parseFloat(loan.loanAmount) <= 50000) || hasKfs) ? 'print-page-break ' : ''}print-page-layout" style="padding: 5px 0; box-sizing:border-box;">
                     <!-- Bank Header (Centered, Large Font) -->
                     <div style="text-align: center; margin-bottom: 8px; border-bottom: 1.5px solid #000000; padding-bottom: 8px;">
-                        <h1 style="font-size: 20px; font-weight: 800; margin: 0; font-family: 'Outfit', 'Noto Sans Gujarati', sans-serif;">ધી જૂનાગઢ કોમર્શિયલ કો-ઓપરેટીવ બેંક લિ.</h1>
-                        <p style="font-size: 14.5px; margin: 2px 0 0 0; font-weight: 700;">હે.ઓ. : “ચંદ્રકાંત માલવિયા સ્મૃતિ ભવન”, ચોકસી બજાર, જૂનાગઢ. ૩૬૨૦૦૧</p>
+                        <h1 style="font-size: 20px; font-weight: 800; margin: 0; font-family: 'Outfit', 'Noto Sans Gujarati', sans-serif;">àª§à«€ àªœà«‚àª¨àª¾àª—àª¢ àª•à«‹àª®àª°à«àª¶àª¿àª¯àª² àª•à«‹-àª“àªªàª°à«‡àªŸà«€àªµ àª¬à«‡àª‚àª• àª²àª¿.</h1>
+                        <p style="font-size: 14.5px; margin: 2px 0 0 0; font-weight: 700;">àª¹à«‡.àª“. : â€œàªšàª‚àª¦à«àª°àª•àª¾àª‚àª¤ àª®àª¾àª²àªµàª¿àª¯àª¾ àª¸à«àª®à«ƒàª¤àª¿ àª­àªµàª¨â€, àªšà«‹àª•àª¸à«€ àª¬àªœàª¾àª°, àªœà«‚àª¨àª¾àª—àª¢. à«©à«¬à«¨à«¦à«¦à«§</p>
                     </div>
 
                     <!-- Recipient & Floating Photos -->
@@ -3436,49 +3440,49 @@ function printVoucher(loanId, format) {
                         <!-- Side-by-side Photo Boxes on the Right -->
                         <div style="float: right; display: flex; gap: 10px; margin-left: 15px; margin-bottom: 5px; align-items: flex-end;">
                             <div style="border: 2px solid #000000; width: 1.1in; height: 1.3in; display: flex; align-items: center; justify-content: center; background-color: #ffffff; overflow: hidden; text-align: center;">
-                                ${loan.custPhoto ? `<img src="${loan.custPhoto}" style="width:100%; height:100%; object-fit:cover;">` : `<span style="font-size:8px; padding:3px; color:#555;">ગ્રાહકનો ફોટો</span>`}
+                                ${loan.custPhoto ? `<img src="${loan.custPhoto}" style="width:100%; height:100%; object-fit:cover;">` : `<span style="font-size:8px; padding:3px; color:#555;">àª—à«àª°àª¾àª¹àª•àª¨à«‹ àª«à«‹àªŸà«‹</span>`}
                             </div>
                             <div style="border: 2px solid #000000; width: 4in; height: 2in; display: flex; align-items: center; justify-content: center; background-color: #ffffff; overflow: hidden; text-align: center;">
-                                ${loan.goldPhoto ? `<img src="${loan.goldPhoto}" style="width:100%; height:100%; object-fit:contain;">` : `<span style="font-size:8px; padding:3px; color:#555;">દાગીનાનો ફોટો</span>`}
+                                ${loan.goldPhoto ? `<img src="${loan.goldPhoto}" style="width:100%; height:100%; object-fit:contain;">` : `<span style="font-size:8px; padding:3px; color:#555;">àª¦àª¾àª—à«€àª¨àª¾àª¨à«‹ àª«à«‹àªŸà«‹</span>`}
                             </div>
                         </div>
                         
-                        <p style="margin: 0 0 4px 0; font-weight: 700;">પ્રતિ,<br>મેનેજરશ્રી,<br>ધી જૂનાગઢ કોમર્શીયલ કો-ઓપરેટીવ બેંક લી.<br>${loan.branchName} શાખા.</p>
-                        <p style="margin: 0; font-weight: 700;">સાહેબશ્રી,</p>
+                        <p style="margin: 0 0 4px 0; font-weight: 700;">àªªà«àª°àª¤àª¿,<br>àª®à«‡àª¨à«‡àªœàª°àª¶à«àª°à«€,<br>àª§à«€ àªœà«‚àª¨àª¾àª—àª¢ àª•à«‹àª®àª°à«àª¶à«€àª¯àª² àª•à«‹-àª“àªªàª°à«‡àªŸà«€àªµ àª¬à«‡àª‚àª• àª²à«€.<br>${loan.branchName} àª¶àª¾àª–àª¾.</p>
+                        <p style="margin: 0; font-weight: 700;">àª¸àª¾àª¹à«‡àª¬àª¶à«àª°à«€,</p>
                     </div>
 
                     <!-- Salutation Details -->
                     <div style="font-size:13px; line-height:1.45; text-align:justify; margin-top:0px;">
                         <p style="margin:0 0 2px 0;">
-                            હું <strong>${loan.borrowerName}</strong> રહે. <strong>${loan.custAddress || "-"}</strong>
+                            àª¹à«àª‚ <strong>${loan.borrowerName}</strong> àª°àª¹à«‡. <strong>${loan.custAddress || "-"}</strong>
                         </p>
                         <p style="margin:0 0 2px 0;">
-                            આજનો બજાર ભાવ રૂ. <strong>${parseFloat(loan.marketRate).toLocaleString("en-IN")}/-</strong> ૧૦ ગ્રામ શુદ્ધ સોનાનો
+                            àª†àªœàª¨à«‹ àª¬àªœàª¾àª° àª­àª¾àªµ àª°à«‚. <strong>${parseFloat(loan.marketRate).toLocaleString("en-IN")}/-</strong> à«§à«¦ àª—à«àª°àª¾àª® àª¶à«àª¦à«àª§ àª¸à«‹àª¨àª¾àª¨à«‹
                         </p>
                     </div>
 
                     <!-- Centered Title -->
                     <div style="text-align: center; margin: 2px 0;">
-                        <span style="font-weight: 800; font-size: 15px; text-decoration: underline; font-family:'Outfit', 'Noto Sans Gujarati', sans-serif;">ગ્રાહકને આપવાની પહોંચ</span>
+                        <span style="font-weight: 800; font-size: 15px; text-decoration: underline; font-family:'Outfit', 'Noto Sans Gujarati', sans-serif;">àª—à«àª°àª¾àª¹àª•àª¨à«‡ àª†àªªàªµàª¾àª¨à«€ àªªàª¹à«‹àª‚àªš</span>
                     </div>
 
                     <!-- Ornaments Table (10 rows) -->
                     <table style="width:100%; border-collapse:collapse; margin:4px 0; font-size:11.5px; border:1.5px solid #000000; text-align:center; color:#000000;">
                         <thead>
                             <tr style="border-bottom:1.5px solid #000000; background-color:#f5f5f5; font-weight:700; height:20px;">
-                                <th style="border-right:1.5px solid #000000; padding:3px; font-weight:800; width:5%;" rowspan="2">ક્રમ</th>
-                                <th style="border-right:1.5px solid #000000; padding:3px; font-weight:800; width:27%;" rowspan="2">દાગીનાની વિગત</th>
-                                <th style="border-right:1.5px solid #000000; padding:3px; font-weight:800; width:8%;" rowspan="2">નંગ</th>
-                                <th style="border-right:1.5px solid #000000; padding:3px; font-weight:800; width:18%;" colspan="2">ગ્રોસ વજન</th>
-                                <th style="border-right:1.5px solid #000000; padding:3px; font-weight:800; width:18%;" colspan="2">નેટ વજન</th>
-                                <th style="border-right:1.5px solid #000000; padding:3px; font-weight:800; width:12%;" rowspan="2">શુદ્ધતા કેરેટમાં</th>
-                                <th style="padding:3px; font-weight:800; width:12%;" rowspan="2">કિંમત રૂ.</th>
+                                <th style="border-right:1.5px solid #000000; padding:3px; font-weight:800; width:5%;" rowspan="2">àª•à«àª°àª®</th>
+                                <th style="border-right:1.5px solid #000000; padding:3px; font-weight:800; width:27%;" rowspan="2">àª¦àª¾àª—à«€àª¨àª¾àª¨à«€ àªµàª¿àª—àª¤</th>
+                                <th style="border-right:1.5px solid #000000; padding:3px; font-weight:800; width:8%;" rowspan="2">àª¨àª‚àª—</th>
+                                <th style="border-right:1.5px solid #000000; padding:3px; font-weight:800; width:18%;" colspan="2">àª—à«àª°à«‹àª¸ àªµàªœàª¨</th>
+                                <th style="border-right:1.5px solid #000000; padding:3px; font-weight:800; width:18%;" colspan="2">àª¨à«‡àªŸ àªµàªœàª¨</th>
+                                <th style="border-right:1.5px solid #000000; padding:3px; font-weight:800; width:12%;" rowspan="2">àª¶à«àª¦à«àª§àª¤àª¾ àª•à«‡àª°à«‡àªŸàª®àª¾àª‚</th>
+                                <th style="padding:3px; font-weight:800; width:12%;" rowspan="2">àª•àª¿àª‚àª®àª¤ àª°à«‚.</th>
                             </tr>
                             <tr style="border-bottom:1.5px solid #000000; background-color:#f5f5f5; font-weight:700; height:18px;">
-                                <th style="border-right:1.5px solid #000000; padding:2px; font-weight:800; font-size:10px;">ગ્રામ</th>
-                                <th style="border-right:1.5px solid #000000; padding:2px; font-weight:800; font-size:10px;">મી.ગ્રા.</th>
-                                <th style="border-right:1.5px solid #000000; padding:2px; font-weight:800; font-size:10px;">ગ્રામ</th>
-                                <th style="border-right:1.5px solid #000000; padding:2px; font-weight:800; font-size:10px;">મી.ગ્રા.</th>
+                                <th style="border-right:1.5px solid #000000; padding:2px; font-weight:800; font-size:10px;">àª—à«àª°àª¾àª®</th>
+                                <th style="border-right:1.5px solid #000000; padding:2px; font-weight:800; font-size:10px;">àª®à«€.àª—à«àª°àª¾.</th>
+                                <th style="border-right:1.5px solid #000000; padding:2px; font-weight:800; font-size:10px;">àª—à«àª°àª¾àª®</th>
+                                <th style="border-right:1.5px solid #000000; padding:2px; font-weight:800; font-size:10px;">àª®à«€.àª—à«àª°àª¾.</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -3496,7 +3500,7 @@ function printVoucher(loanId, format) {
                             </tr>
                             `).join('')}
                             <tr style="font-weight:800; background-color:#f5f5f5; height:22px;">
-                                <td style="border-right:1.5px solid #000000; padding:2px;" colspan="3">કુલ (Total)</td>
+                                <td style="border-right:1.5px solid #000000; padding:2px;" colspan="3">àª•à«àª² (Total)</td>
                                 <td style="border-right:1.5px solid #000000; padding:2px;"></td>
                                 <td style="border-right:1.5px solid #000000; padding:2px;"></td>
                                 <td style="border-right:1.5px solid #000000; padding:2px;"></td>
@@ -3509,14 +3513,14 @@ function printVoucher(loanId, format) {
 
                     <!-- Duration Details -->
                     <p style="margin: 2px 0; font-size: 13px; line-height: 1.4;">
-                        સદરહુ ધિરાણ રૂ. <strong>${parseFloat(loan.loanAmount).toLocaleString("en-IN")}/-</strong> ની મુદત તા. <strong>${formatDateDMY(loan.date)}</strong> થી <strong>${tenureMonthsVal === 36 ? '૩ વર્ષ' : '૧ વર્ષ'}</strong> સુધીની છે.
+                        àª¸àª¦àª°àª¹à« àª§àª¿àª°àª¾àª£ àª°à«‚. <strong>${parseFloat(loan.loanAmount).toLocaleString("en-IN")}/-</strong> àª¨à«€ àª®à«àª¦àª¤ àª¤àª¾. <strong>${formatDateDMY(loan.date)}</strong> àª¥à«€ <strong>${tenureMonthsVal === 36 ? 'à«© àªµàª°à«àª·' : 'à«§ àªµàª°à«àª·'}</strong> àª¸à«àª§à«€àª¨à«€ àª›à«‡.
                     </p>
 
                     <!-- Location & Date on the Left / Signature placeholder on the Right -->
                     <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 3px; font-size: 13px; font-weight: 700; line-height: 1.4;">
                         <div>
-                            <div>સ્થળઃ- ${loan.branchName}</div>
-                            <div>તારીખઃ- ${formatDateDMY(loan.date)}</div>
+                            <div>àª¸à«àª¥àª³àªƒ- ${loan.branchName}</div>
+                            <div>àª¤àª¾àª°à«€àª–àªƒ- ${formatDateDMY(loan.date)}</div>
                         </div>
                         <div style="text-align: right; width: 45%;">
                         </div>
@@ -3527,21 +3531,21 @@ function printVoucher(loanId, format) {
                         <div style="width: 32%;">
                             <div>X............................................................</div>
                             <div style="margin-top: 2px;">${valuer.name}</div>
-                            <div style="font-size: 10px; font-weight: 600; color: #444; margin-top:1px;">${valuer.name}<br>(સીલબંધ પેકેટ તૈયાર કરનાર)</div>
+                            <div style="font-size: 10px; font-weight: 600; color: #444; margin-top:1px;">${valuer.name}<br>(àª¸à«€àª²àª¬àª‚àª§ àªªà«‡àª•à«‡àªŸ àª¤à«ˆàª¯àª¾àª° àª•àª°àª¨àª¾àª°)</div>
                         </div>
                         <div style="width: 32%;">
                             <div>X............................................................</div>
                             <div style="margin-top: 2px;">${loan.borrowerName}</div>
-                            <div style="font-size: 10px; font-weight: 600; color: #444; margin-top:1px;">દાગીના સોંપનારની સહી<br>(${loan.borrowerName})</div>
+                            <div style="font-size: 10px; font-weight: 600; color: #444; margin-top:1px;">àª¦àª¾àª—à«€àª¨àª¾ àª¸à«‹àª‚àªªàª¨àª¾àª°àª¨à«€ àª¸àª¹à«€<br>(${loan.borrowerName})</div>
                         </div>
                         <div style="width: 32%; display: flex; flex-direction: column; gap: 20px;">
                             <div>
                                 <div style="margin-bottom: 1px;">X............................................................</div>
-                                <div style="font-size: 10px; font-weight: 600; color: #444;">ઓફિસરની સહી (સંભાળનાર)</div>
+                                <div style="font-size: 10px; font-weight: 600; color: #444;">àª“àª«àª¿àª¸àª°àª¨à«€ àª¸àª¹à«€ (àª¸àª‚àª­àª¾àª³àª¨àª¾àª°)</div>
                             </div>
                             <div style="margin-top: 15px;">
                                 <div style="margin-bottom: 1px;">X............................................................</div>
-                                <div style="font-size: 10px; font-weight: 600; color: #444;">શાખા પ્રબંધકની સહી</div>
+                                <div style="font-size: 10px; font-weight: 600; color: #444;">àª¶àª¾àª–àª¾ àªªà«àª°àª¬àª‚àª§àª•àª¨à«€ àª¸àª¹à«€</div>
                             </div>
                         </div>
                     </div>
@@ -3551,210 +3555,210 @@ function printVoucher(loanId, format) {
 
                     <!-- Return Acknowledgment Title -->
                     <div style="text-align: center; margin: 0;">
-                        <span style="font-weight: 800; font-size: 13.5px; text-decoration: underline; font-family:'Outfit', 'Noto Sans Gujarati', sans-serif;">દાગીના પરત મળ્યાંની પહોંચ</span>
+                        <span style="font-weight: 800; font-size: 13.5px; text-decoration: underline; font-family:'Outfit', 'Noto Sans Gujarati', sans-serif;">àª¦àª¾àª—à«€àª¨àª¾ àªªàª°àª¤ àª®àª³à«àª¯àª¾àª‚àª¨à«€ àªªàª¹à«‹àª‚àªš</span>
                     </div>
 
                     <div style="font-size: 11.5px; line-height: 1.3; text-align: left; margin-bottom: 3px; font-weight: 700;">
-                        પ્રતિ,<br>મેનેજરશ્રી, ધી જૂનાગઢ કોમ. કો-ઓપ. બેંક લિ. <br>${loan.branchName} શાખા.
+                        àªªà«àª°àª¤àª¿,<br>àª®à«‡àª¨à«‡àªœàª°àª¶à«àª°à«€, àª§à«€ àªœà«‚àª¨àª¾àª—àª¢ àª•à«‹àª®. àª•à«‹-àª“àªª. àª¬à«‡àª‚àª• àª²àª¿. <br>${loan.branchName} àª¶àª¾àª–àª¾.
                     </div>
 
                     <p style="text-indent: 20px; font-size: 11.5px; line-height: 1.35; text-align: justify; margin: 1px 0;">
-                        બેંક તરફથી ઉપર મુજબના દાગીના મને અંકે કરજ પાકતી મુદતે પૂરેપૂરા સોનાના વજન સહીત સીલબંધ પેકેટમાં સહી-સલામત પરત મળેલ છે. હવે મારે બેંક પ્રત્યે દાગીના અંગે કશો વાંધો કે તકરાર રહેતી નથી.
+                        àª¬à«‡àª‚àª• àª¤àª°àª«àª¥à«€ àª‰àªªàª° àª®à«àªœàª¬àª¨àª¾ àª¦àª¾àª—à«€àª¨àª¾ àª®àª¨à«‡ àª…àª‚àª•à«‡ àª•àª°àªœ àªªàª¾àª•àª¤à«€ àª®à«àª¦àª¤à«‡ àªªà«‚àª°à«‡àªªà«‚àª°àª¾ àª¸à«‹àª¨àª¾àª¨àª¾ àªµàªœàª¨ àª¸àª¹à«€àª¤ àª¸à«€àª²àª¬àª‚àª§ àªªà«‡àª•à«‡àªŸàª®àª¾àª‚ àª¸àª¹à«€-àª¸àª²àª¾àª®àª¤ àªªàª°àª¤ àª®àª³à«‡àª² àª›à«‡. àª¹àªµà«‡ àª®àª¾àª°à«‡ àª¬à«‡àª‚àª• àªªà«àª°àª¤à«àª¯à«‡ àª¦àª¾àª—à«€àª¨àª¾ àª…àª‚àª—à«‡ àª•àª¶à«‹ àªµàª¾àª‚àª§à«‹ àª•à«‡ àª¤àª•àª°àª¾àª° àª°àª¹à«‡àª¤à«€ àª¨àª¥à«€.
                     </p>
 
                     <!-- Return Metadata & Signature Row -->
                     <div style="display:flex; justify-content:space-between; align-items:flex-end; margin-top: 2px; font-size: 11.5px;">
                         <div style="font-weight: 700; line-height: 1.4; text-align: left;">
-                            <div>તારીખ:- ${formatDateDMY(loan.date)}</div>
-                            <div>લોન ખાતા નં:- ${loan.accountNo || "-"}</div>
-                            <div>પેકેટ નંબર:- #${loan.packetNo || "-"}</div>
+                            <div>àª¤àª¾àª°à«€àª–:- ${formatDateDMY(loan.date)}</div>
+                            <div>àª²à«‹àª¨ àª–àª¾àª¤àª¾ àª¨àª‚:- ${loan.accountNo || "-"}</div>
+                            <div>àªªà«‡àª•à«‡àªŸ àª¨àª‚àª¬àª°:- #${loan.packetNo || "-"}</div>
                         </div>
                         <div style="text-align: center; width: 45%;">
                             <div>X....................................................</div>
                             <div style="margin-top: 2px; font-weight: 700;">(${loan.borrowerName})</div>
-                            <div style="font-size: 10px; font-weight: 600; color: #444; margin-top:1px;">દાગીના પરત મેળવનાર</div>
+                            <div style="font-size: 10px; font-weight: 600; color: #444; margin-top:1px;">àª¦àª¾àª—à«€àª¨àª¾ àªªàª°àª¤ àª®à«‡àª³àªµàª¨àª¾àª°</div>
                         </div>
                     </div>
 
                     <!-- Rules Box -->
                     <div style="margin-top: 2px; border: 1.5px solid #000000; padding: 3px 6px; font-size: 8px; line-height: 1.2; background-color: #fafafa; color: #000000;">
-                        <div style="font-weight: 800; font-size: 9px; margin-bottom: 2px; text-decoration: underline; font-family:'Outfit', 'Noto Sans Gujarati', sans-serif;">નિયમોઃ-</div>
+                        <div style="font-weight: 800; font-size: 9px; margin-bottom: 2px; text-decoration: underline; font-family:'Outfit', 'Noto Sans Gujarati', sans-serif;">àª¨àª¿àª¯àª®à«‹àªƒ-</div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2px 15px;">
-                            <div><strong>(૧)</strong> આ ધિરાણની મુદત એક વર્ષની છે.</div>
-                            <div><strong>(૨)</strong> વ્યાજનો દર બેંકનું બોર્ડ વખતોવખત ઠરાવશે તે લાગુ રહેશે.</div>
-                            <div><strong>(૩)</strong> ખાતે ઉધારેલ માસિક વ્યાજ દર માસે જમા કરાવવાનું છે. અન્યથા ૨ % વધારાનું વ્યાજ વસુલવામાં આવશે.</div>
-                            <div><strong>(૪)</strong> ધિરાણ લેનારે વારસદાર નીમવા ફરજીયાત છે.</div>
-                            <div><strong>(૫)</strong> આ ધિરાણ અંગેના તમામ વ્યવહારો કરતી વખતે આ પહોંચ સાથે રાખવી ફરજીયાત છે.</div>
-                            <div><strong>(૬)</strong> ધિરાણ લેનાર વ્યક્તિને જ દાગીના પરત સોંપવામાં આવશે.</div>
+                            <div><strong>(à«§)</strong> àª† àª§àª¿àª°àª¾àª£àª¨à«€ àª®à«àª¦àª¤ àªàª• àªµàª°à«àª·àª¨à«€ àª›à«‡.</div>
+                            <div><strong>(à«¨)</strong> àªµà«àª¯àª¾àªœàª¨à«‹ àª¦àª° àª¬à«‡àª‚àª•àª¨à«àª‚ àª¬à«‹àª°à«àª¡ àªµàª–àª¤à«‹àªµàª–àª¤ àª àª°àª¾àªµàª¶à«‡ àª¤à«‡ àª²àª¾àª—à« àª°àª¹à«‡àª¶à«‡.</div>
+                            <div><strong>(à«©)</strong> àª–àª¾àª¤à«‡ àª‰àª§àª¾àª°à«‡àª² àª®àª¾àª¸àª¿àª• àªµà«àª¯àª¾àªœ àª¦àª° àª®àª¾àª¸à«‡ àªœàª®àª¾ àª•àª°àª¾àªµàªµàª¾àª¨à«àª‚ àª›à«‡. àª…àª¨à«àª¯àª¥àª¾ à«¨ % àªµàª§àª¾àª°àª¾àª¨à«àª‚ àªµà«àª¯àª¾àªœ àªµàª¸à«àª²àªµàª¾àª®àª¾àª‚ àª†àªµàª¶à«‡.</div>
+                            <div><strong>(à«ª)</strong> àª§àª¿àª°àª¾àª£ àª²à«‡àª¨àª¾àª°à«‡ àªµàª¾àª°àª¸àª¦àª¾àª° àª¨à«€àª®àªµàª¾ àª«àª°àªœà«€àª¯àª¾àª¤ àª›à«‡.</div>
+                            <div><strong>(à««)</strong> àª† àª§àª¿àª°àª¾àª£ àª…àª‚àª—à«‡àª¨àª¾ àª¤àª®àª¾àª® àªµà«àª¯àªµàª¹àª¾àª°à«‹ àª•àª°àª¤à«€ àªµàª–àª¤à«‡ àª† àªªàª¹à«‹àª‚àªš àª¸àª¾àª¥à«‡ àª°àª¾àª–àªµà«€ àª«àª°àªœà«€àª¯àª¾àª¤ àª›à«‡.</div>
+                            <div><strong>(à«¬)</strong> àª§àª¿àª°àª¾àª£ àª²à«‡àª¨àª¾àª° àªµà«àª¯àª•à«àª¤àª¿àª¨à«‡ àªœ àª¦àª¾àª—à«€àª¨àª¾ àªªàª°àª¤ àª¸à«‹àª‚àªªàªµàª¾àª®àª¾àª‚ àª†àªµàª¶à«‡.</div>
                         </div>
                     </div>
                 </div>
-                                <!-- PAGE 4: LETTER OF PLEDGE (લેટર ઓફ પ્લેજ) -->
+                                <!-- PAGE 4: LETTER OF PLEDGE (àª²à«‡àªŸàª° àª“àª« àªªà«àª²à«‡àªœ) -->
                 ${(!is3553 && parseFloat(loan.loanAmount) <= 50000) ? `
                 <div class="${hasKfs ? 'print-page-break ' : ''}print-page-layout" style="padding: 10px 0; box-sizing:border-box; font-family:'Outfit', 'Noto Sans Gujarati', sans-serif; font-size:14.5px; line-height:1.45; color:#000000; background-color:#ffffff;">
                     <!-- Date on Right -->
                     <div style="text-align: right; font-weight: 700; margin-bottom: 8px;">
-                        તારીખઃ- ${formatDateDMY(loan.date)}
+                        àª¤àª¾àª°à«€àª–àªƒ- ${formatDateDMY(loan.date)}
                     </div>
 
                     <!-- Centered Title -->
                     <div style="text-align: center; margin-bottom: 12px;">
-                        <h2 style="font-size: 20px; font-weight: 800; margin: 0; text-decoration: underline;">લેટર ઓફ પ્લેજ</h2>
+                        <h2 style="font-size: 20px; font-weight: 800; margin: 0; text-decoration: underline;">àª²à«‡àªŸàª° àª“àª« àªªà«àª²à«‡àªœ</h2>
                     </div>
 
                     <!-- Recipient -->
                     <div style="font-weight: 700; margin-bottom: 10px; line-height: 1.4;">
-                        પ્રતિ,<br>
-                        મેનેજર સાહેબ,<br>
-                        ધી જૂનાગઢ કોમ. કો-ઓપ. બેંક લિ.<br>
-                        ${loan.branchName} શાખા.
+                        àªªà«àª°àª¤àª¿,<br>
+                        àª®à«‡àª¨à«‡àªœàª° àª¸àª¾àª¹à«‡àª¬,<br>
+                        àª§à«€ àªœà«‚àª¨àª¾àª—àª¢ àª•à«‹àª®. àª•à«‹-àª“àªª. àª¬à«‡àª‚àª• àª²àª¿.<br>
+                        ${loan.branchName} àª¶àª¾àª–àª¾.
                     </div>
 
                     <!-- Opening declaration -->
                     <p style="margin-bottom: 10px; text-align: justify; text-indent: 30px;">
-                        હું <strong>${loan.borrowerName}</strong> ધંધોઃ- <strong>${loan.custOccupation || "-"}</strong>, ઉ.વ. <strong>${loan.custAge || "-"}</strong>, ધર્મેઃ- <strong>${loan.custReligion || "-"}</strong>, રહેઃ- <strong>${loan.custAddress || "-"}</strong> નીચે પ્રમાણે લખી બંધાઉં છું કે :-
+                        àª¹à«àª‚ <strong>${loan.borrowerName}</strong> àª§àª‚àª§à«‹àªƒ- <strong>${loan.custOccupation || "-"}</strong>, àª‰.àªµ. <strong>${loan.custAge || "-"}</strong>, àª§àª°à«àª®à«‡àªƒ- <strong>${loan.custReligion || "-"}</strong>, àª°àª¹à«‡àªƒ- <strong>${loan.custAddress || "-"}</strong> àª¨à«€àªšà«‡ àªªà«àª°àª®àª¾àª£à«‡ àª²àª–à«€ àª¬àª‚àª§àª¾àª‰àª‚ àª›à«àª‚ àª•à«‡ :-
                     </p>
 
                     <!-- 10 Points List -->
                     <div style="margin-bottom: 12px;">
                         <div style="display: flex; align-items: flex-start; margin-bottom: 5px;">
-                            <span style="font-weight: 800; min-width: 30px; flex-shrink: 0;">૧.</span>
-                            <span style="text-align: justify;">આજરોજ મારી પોતાની માલિકીના સોનાના દાગીના કે જેની નોંધ બેંક તરફથી મને મળેલ જુદી પહોંચમાં કરેલ છે, તે બેંકને થાલમાં આપી મેં રૂ. <strong>${parseFloat(loan.loanAmount).toLocaleString("en-IN")}/-</strong> અંકે રૂપિયા <strong>${gujWords}</strong> નું ધિરાણ મેળવેલ છે.</span>
+                            <span style="font-weight: 800; min-width: 30px; flex-shrink: 0;">à«§.</span>
+                            <span style="text-align: justify;">àª†àªœàª°à«‹àªœ àª®àª¾àª°à«€ àªªà«‹àª¤àª¾àª¨à«€ àª®àª¾àª²àª¿àª•à«€àª¨àª¾ àª¸à«‹àª¨àª¾àª¨àª¾ àª¦àª¾àª—à«€àª¨àª¾ àª•à«‡ àªœà«‡àª¨à«€ àª¨à«‹àª‚àª§ àª¬à«‡àª‚àª• àª¤àª°àª«àª¥à«€ àª®àª¨à«‡ àª®àª³à«‡àª² àªœà«àª¦à«€ àªªàª¹à«‹àª‚àªšàª®àª¾àª‚ àª•àª°à«‡àª² àª›à«‡, àª¤à«‡ àª¬à«‡àª‚àª•àª¨à«‡ àª¥àª¾àª²àª®àª¾àª‚ àª†àªªà«€ àª®à«‡àª‚ àª°à«‚. <strong>${parseFloat(loan.loanAmount).toLocaleString("en-IN")}/-</strong> àª…àª‚àª•à«‡ àª°à«‚àªªàª¿àª¯àª¾ <strong>${gujWords}</strong> àª¨à«àª‚ àª§àª¿àª°àª¾àª£ àª®à«‡àª³àªµà«‡àª² àª›à«‡.</span>
                         </div>
                         <div style="display: flex; align-items: flex-start; margin-bottom: 5px;">
-                            <span style="font-weight: 800; min-width: 30px; flex-shrink: 0;">૨.</span>
-                            <span style="text-align: justify;">સદરહુ રકમની આજરોજ મેં જુદી વચન ચિઠ્ઠી લખી છે અને ધિરાણની રકમ પર <strong>${loan.interestRate}</strong> ના વાર્ષિક વ્યાજ દરે, માસિક ચક્રવૃદ્ધિ લેખે ભરપાઈ કરવું છે.</span>
+                            <span style="font-weight: 800; min-width: 30px; flex-shrink: 0;">à«¨.</span>
+                            <span style="text-align: justify;">àª¸àª¦àª°àª¹à« àª°àª•àª®àª¨à«€ àª†àªœàª°à«‹àªœ àª®à«‡àª‚ àªœà«àª¦à«€ àªµàªšàª¨ àªšàª¿àª à«àª à«€ àª²àª–à«€ àª›à«‡ àª…àª¨à«‡ àª§àª¿àª°àª¾àª£àª¨à«€ àª°àª•àª® àªªàª° <strong>${loan.interestRate}</strong> àª¨àª¾ àªµàª¾àª°à«àª·àª¿àª• àªµà«àª¯àª¾àªœ àª¦àª°à«‡, àª®àª¾àª¸àª¿àª• àªšàª•à«àª°àªµà«ƒàª¦à«àª§àª¿ àª²à«‡àª–à«‡ àª­àª°àªªàª¾àªˆ àª•àª°àªµà«àª‚ àª›à«‡.</span>
                         </div>
                         <div style="display: flex; align-items: flex-start; margin-bottom: 5px;">
-                            <span style="font-weight: 800; min-width: 30px; flex-shrink: 0;">૩.</span>
-                            <span style="text-align: justify;">સદરહુ ધિરાણની રકમ ૧ વર્ષમાં ચડત વ્યાજ સહિત બેંકને ભરપાઈ કરી આપવાની છે અને વ્યાજ દર મહિને જમા કરાવી આપવાનું છે, અન્યથા બેંક દર વર્ષે દર સેંકડે ૨.૦૦ % લેખે દંડનીય વ્યાજ સદર વ્યાજની રકમ ઉપરાંત વસુલ કરશે તે મને કબુલ-મંજુર છે.</span>
+                            <span style="font-weight: 800; min-width: 30px; flex-shrink: 0;">à«©.</span>
+                            <span style="text-align: justify;">àª¸àª¦àª°àª¹à« àª§àª¿àª°àª¾àª£àª¨à«€ àª°àª•àª® à«§ àªµàª°à«àª·àª®àª¾àª‚ àªšàª¡àª¤ àªµà«àª¯àª¾àªœ àª¸àª¹àª¿àª¤ àª¬à«‡àª‚àª•àª¨à«‡ àª­àª°àªªàª¾àªˆ àª•àª°à«€ àª†àªªàªµàª¾àª¨à«€ àª›à«‡ àª…àª¨à«‡ àªµà«àª¯àª¾àªœ àª¦àª° àª®àª¹àª¿àª¨à«‡ àªœàª®àª¾ àª•àª°àª¾àªµà«€ àª†àªªàªµàª¾àª¨à«àª‚ àª›à«‡, àª…àª¨à«àª¯àª¥àª¾ àª¬à«‡àª‚àª• àª¦àª° àªµàª°à«àª·à«‡ àª¦àª° àª¸à«‡àª‚àª•àª¡à«‡ à«¨.à«¦à«¦ % àª²à«‡àª–à«‡ àª¦àª‚àª¡àª¨à«€àª¯ àªµà«àª¯àª¾àªœ àª¸àª¦àª° àªµà«àª¯àª¾àªœàª¨à«€ àª°àª•àª® àª‰àªªàª°àª¾àª‚àª¤ àªµàª¸à«àª² àª•àª°àª¶à«‡ àª¤à«‡ àª®àª¨à«‡ àª•àª¬à«àª²-àª®àª‚àªœà«àª° àª›à«‡.</span>
                         </div>
                         <div style="display: flex; align-items: flex-start; margin-bottom: 5px;">
-                            <span style="font-weight: 800; min-width: 30px; flex-shrink: 0;">૪.</span>
-                            <span style="text-align: justify;">બેંક દ્વારા વ્યાજ દરમાં વધારા / ઘટાડાની જાહેરાત બેંકના નોટીસ બોર્ડ પર કરી તેની અમલવારી જાહેરાતમાં દર્શાવેલી તારીખથી કરશે જે મને કબુલ-મંજુર છે અને આવા વધારા / ઘટાડા અનુસાર બેંકને જે તે તારીખથી વ્યાજ ચુકવવા બંધાઉં છું.</span>
+                            <span style="font-weight: 800; min-width: 30px; flex-shrink: 0;">à«ª.</span>
+                            <span style="text-align: justify;">àª¬à«‡àª‚àª• àª¦à«àªµàª¾àª°àª¾ àªµà«àª¯àª¾àªœ àª¦àª°àª®àª¾àª‚ àªµàª§àª¾àª°àª¾ / àª˜àªŸàª¾àª¡àª¾àª¨à«€ àªœàª¾àª¹à«‡àª°àª¾àª¤ àª¬à«‡àª‚àª•àª¨àª¾ àª¨à«‹àªŸà«€àª¸ àª¬à«‹àª°à«àª¡ àªªàª° àª•àª°à«€ àª¤à«‡àª¨à«€ àª…àª®àª²àªµàª¾àª°à«€ àªœàª¾àª¹à«‡àª°àª¾àª¤àª®àª¾àª‚ àª¦àª°à«àª¶àª¾àªµà«‡àª²à«€ àª¤àª¾àª°à«€àª–àª¥à«€ àª•àª°àª¶à«‡ àªœà«‡ àª®àª¨à«‡ àª•àª¬à«àª²-àª®àª‚àªœà«àª° àª›à«‡ àª…àª¨à«‡ àª†àªµàª¾ àªµàª§àª¾àª°àª¾ / àª˜àªŸàª¾àª¡àª¾ àª…àª¨à«àª¸àª¾àª° àª¬à«‡àª‚àª•àª¨à«‡ àªœà«‡ àª¤à«‡ àª¤àª¾àª°à«€àª–àª¥à«€ àªµà«àª¯àª¾àªœ àªšà«àª•àªµàªµàª¾ àª¬àª‚àª§àª¾àª‰àª‚ àª›à«àª‚.</span>
                         </div>
                         <div style="display: flex; align-items: flex-start; margin-bottom: 5px;">
-                            <span style="font-weight: 800; min-width: 30px; flex-shrink: 0;">૫.</span>
-                            <span style="text-align: justify;">હું બેંકનો સભાસદ / નોમિનલ સભાસદ છું અને બેંકના નિયમો તથા પેટા નિયમો વાંચ્યા અને સમજ્યા છે અને તે મને બંધનકર્તા છે અને તેમાં વખતોવખત જે ફેરફાર થાય તે પાળવા બંધાઉં છું.</span>
+                            <span style="font-weight: 800; min-width: 30px; flex-shrink: 0;">à««.</span>
+                            <span style="text-align: justify;">àª¹à«àª‚ àª¬à«‡àª‚àª•àª¨à«‹ àª¸àª­àª¾àª¸àª¦ / àª¨à«‹àª®àª¿àª¨àª² àª¸àª­àª¾àª¸àª¦ àª›à«àª‚ àª…àª¨à«‡ àª¬à«‡àª‚àª•àª¨àª¾ àª¨àª¿àª¯àª®à«‹ àª¤àª¥àª¾ àªªà«‡àªŸàª¾ àª¨àª¿àª¯àª®à«‹ àªµàª¾àª‚àªšà«àª¯àª¾ àª…àª¨à«‡ àª¸àª®àªœà«àª¯àª¾ àª›à«‡ àª…àª¨à«‡ àª¤à«‡ àª®àª¨à«‡ àª¬àª‚àª§àª¨àª•àª°à«àª¤àª¾ àª›à«‡ àª…àª¨à«‡ àª¤à«‡àª®àª¾àª‚ àªµàª–àª¤à«‹àªµàª–àª¤ àªœà«‡ àª«à«‡àª°àª«àª¾àª° àª¥àª¾àª¯ àª¤à«‡ àªªàª¾àª³àªµàª¾ àª¬àª‚àª§àª¾àª‰àª‚ àª›à«àª‚.</span>
                         </div>
                         <div style="display: flex; align-items: flex-start; margin-bottom: 5px;">
-                            <span style="font-weight: 800; min-width: 30px; flex-shrink: 0;">૬.</span>
-                            <span style="text-align: justify;">મેં સોંપેલ દાગીના પર વારસનો હક છે. પરંતુ તેમને તે ખાતર કોઈપણ જાતનો વાંધો કરવાનો અધિકાર નથી.</span>
+                            <span style="font-weight: 800; min-width: 30px; flex-shrink: 0;">à«¬.</span>
+                            <span style="text-align: justify;">àª®à«‡àª‚ àª¸à«‹àª‚àªªà«‡àª² àª¦àª¾àª—à«€àª¨àª¾ àªªàª° àªµàª¾àª°àª¸àª¨à«‹ àª¹àª• àª›à«‡. àªªàª°àª‚àª¤à« àª¤à«‡àª®àª¨à«‡ àª¤à«‡ àª–àª¾àª¤àª° àª•à«‹àªˆàªªàª£ àªœàª¾àª¤àª¨à«‹ àªµàª¾àª‚àª§à«‹ àª•àª°àªµàª¾àª¨à«‹ àª…àª§àª¿àª•àª¾àª° àª¨àª¥à«€.</span>
                         </div>
                         <div style="display: flex; align-items: flex-start; margin-bottom: 5px;">
-                            <span style="font-weight: 800; min-width: 30px; flex-shrink: 0;">૭.</span>
-                            <span style="text-align: justify;">બેંક માંગે ત્યારે ધિરાણ મેળવેલ તમામ રકમ વ્યાજ સહીત ભરપાઈ કરવાની છે અને તેમ કરવામાં હું કસુર કરું તો બેંક થાલમાં મુકેલ દાગીના વેંચી શકે છે. આવી રીતે બેંકે વેંચેલ દાગીના પરત્વે મારે કશો વાંધો રહેશે નહિ, આ અંગેની સર્વ જવાબદારી મારી રહેશે અને જે કાંઈપણ ખર્ચ થશે તે મારે શિરે રહેશે, જે મારા વંશ-વારસોને કબુલ-મંજુર છે. દાગીના વેંચાતા ઉપજેલી કિંમતમાંથી બેંક પોતાનું લ્હેણું વસુલ કરી બાકી રકમ મને આપશે અથવા મારા વારસને આપશે.</span>
+                            <span style="font-weight: 800; min-width: 30px; flex-shrink: 0;">à«­.</span>
+                            <span style="text-align: justify;">àª¬à«‡àª‚àª• àª®àª¾àª‚àª—à«‡ àª¤à«àª¯àª¾àª°à«‡ àª§àª¿àª°àª¾àª£ àª®à«‡àª³àªµà«‡àª² àª¤àª®àª¾àª® àª°àª•àª® àªµà«àª¯àª¾àªœ àª¸àª¹à«€àª¤ àª­àª°àªªàª¾àªˆ àª•àª°àªµàª¾àª¨à«€ àª›à«‡ àª…àª¨à«‡ àª¤à«‡àª® àª•àª°àªµàª¾àª®àª¾àª‚ àª¹à«àª‚ àª•àª¸à«àª° àª•àª°à«àª‚ àª¤à«‹ àª¬à«‡àª‚àª• àª¥àª¾àª²àª®àª¾àª‚ àª®à«àª•à«‡àª² àª¦àª¾àª—à«€àª¨àª¾ àªµà«‡àª‚àªšà«€ àª¶àª•à«‡ àª›à«‡. àª†àªµà«€ àª°à«€àª¤à«‡ àª¬à«‡àª‚àª•à«‡ àªµà«‡àª‚àªšà«‡àª² àª¦àª¾àª—à«€àª¨àª¾ àªªàª°àª¤à«àªµà«‡ àª®àª¾àª°à«‡ àª•àª¶à«‹ àªµàª¾àª‚àª§à«‹ àª°àª¹à«‡àª¶à«‡ àª¨àª¹àª¿, àª† àª…àª‚àª—à«‡àª¨à«€ àª¸àª°à«àªµ àªœàªµàª¾àª¬àª¦àª¾àª°à«€ àª®àª¾àª°à«€ àª°àª¹à«‡àª¶à«‡ àª…àª¨à«‡ àªœà«‡ àª•àª¾àª‚àªˆàªªàª£ àª–àª°à«àªš àª¥àª¶à«‡ àª¤à«‡ àª®àª¾àª°à«‡ àª¶àª¿àª°à«‡ àª°àª¹à«‡àª¶à«‡, àªœà«‡ àª®àª¾àª°àª¾ àªµàª‚àª¶-àªµàª¾àª°àª¸à«‹àª¨à«‡ àª•àª¬à«àª²-àª®àª‚àªœà«àª° àª›à«‡. àª¦àª¾àª—à«€àª¨àª¾ àªµà«‡àª‚àªšàª¾àª¤àª¾ àª‰àªªàªœà«‡àª²à«€ àª•àª¿àª‚àª®àª¤àª®àª¾àª‚àª¥à«€ àª¬à«‡àª‚àª• àªªà«‹àª¤àª¾àª¨à«àª‚ àª²à«àª¹à«‡àª£à«àª‚ àªµàª¸à«àª² àª•àª°à«€ àª¬àª¾àª•à«€ àª°àª•àª® àª®àª¨à«‡ àª†àªªàª¶à«‡ àª…àª¥àªµàª¾ àª®àª¾àª°àª¾ àªµàª¾àª°àª¸àª¨à«‡ àª†àªªàª¶à«‡.</span>
                         </div>
                         <div style="display: flex; align-items: flex-start; margin-bottom: 5px;">
-                            <span style="font-weight: 800; min-width: 30px; flex-shrink: 0;">૮.</span>
-                            <span style="text-align: justify;">મેં થાલમાં મુકેલ દાગીના બેંક ફરીથી થાલમાં મૂકી શકશે.</span>
+                            <span style="font-weight: 800; min-width: 30px; flex-shrink: 0;">à«®.</span>
+                            <span style="text-align: justify;">àª®à«‡àª‚ àª¥àª¾àª²àª®àª¾àª‚ àª®à«àª•à«‡àª² àª¦àª¾àª—à«€àª¨àª¾ àª¬à«‡àª‚àª• àª«àª°à«€àª¥à«€ àª¥àª¾àª²àª®àª¾àª‚ àª®à«‚àª•à«€ àª¶àª•àª¶à«‡.</span>
                         </div>
                         <div style="display: flex; align-items: flex-start; margin-bottom: 5px;">
-                            <span style="font-weight: 800; min-width: 30px; flex-shrink: 0;">૯.</span>
-                            <span style="text-align: justify;">મેં બેંકને થાલમાં આપેલાં દાગીનાનું સીલબંધ પેકેટ RBI ના નિર્દેશો અનુસાર રીચેકીંગના હેતુ માટે સક્ષમ અધિકારી સમક્ષ ખોલીને રીચેકીંગ કરાવી શકશે જેમાં મારી હાજરીની જરૂરી રહેશે નહીં.</span>
+                            <span style="font-weight: 800; min-width: 30px; flex-shrink: 0;">à«¯.</span>
+                            <span style="text-align: justify;">àª®à«‡àª‚ àª¬à«‡àª‚àª•àª¨à«‡ àª¥àª¾àª²àª®àª¾àª‚ àª†àªªà«‡àª²àª¾àª‚ àª¦àª¾àª—à«€àª¨àª¾àª¨à«àª‚ àª¸à«€àª²àª¬àª‚àª§ àªªà«‡àª•à«‡àªŸ RBI àª¨àª¾ àª¨àª¿àª°à«àª¦à«‡àª¶à«‹ àª…àª¨à«àª¸àª¾àª° àª°à«€àªšà«‡àª•à«€àª‚àª—àª¨àª¾ àª¹à«‡àª¤à« àª®àª¾àªŸà«‡ àª¸àª•à«àª·àª® àª…àª§àª¿àª•àª¾àª°à«€ àª¸àª®àª•à«àª· àª–à«‹àª²à«€àª¨à«‡ àª°à«€àªšà«‡àª•à«€àª‚àª— àª•àª°àª¾àªµà«€ àª¶àª•àª¶à«‡ àªœà«‡àª®àª¾àª‚ àª®àª¾àª°à«€ àª¹àª¾àªœàª°à«€àª¨à«€ àªœàª°à«‚àª°à«€ àª°àª¹à«‡àª¶à«‡ àª¨àª¹à«€àª‚.</span>
                         </div>
                         <div style="display: flex; align-items: flex-start; margin-bottom: 5px;">
-                            <span style="font-weight: 800; min-width: 30px; flex-shrink: 0;">૧૦.</span>
-                            <span style="text-align: justify;">રીઝર્વ બેંક ઓફ ઇન્ડિયાની સહકારી બેંકો ઉપર વખતોવખત જારી કરેલી ધિરાણ ખાતાઓમાં વ્યાજ ઉધારવા અંગેની સૂચનાઓ અનુસાર આ ધિરાણ ખાતામાં વ્યાજ ઉધારશે તે મને કબુલ અને બંધનકર્તા છે.</span>
+                            <span style="font-weight: 800; min-width: 30px; flex-shrink: 0;">à«§à«¦.</span>
+                            <span style="text-align: justify;">àª°à«€àªàª°à«àªµ àª¬à«‡àª‚àª• àª“àª« àª‡àª¨à«àª¡àª¿àª¯àª¾àª¨à«€ àª¸àª¹àª•àª¾àª°à«€ àª¬à«‡àª‚àª•à«‹ àª‰àªªàª° àªµàª–àª¤à«‹àªµàª–àª¤ àªœàª¾àª°à«€ àª•àª°à«‡àª²à«€ àª§àª¿àª°àª¾àª£ àª–àª¾àª¤àª¾àª“àª®àª¾àª‚ àªµà«àª¯àª¾àªœ àª‰àª§àª¾àª°àªµàª¾ àª…àª‚àª—à«‡àª¨à«€ àª¸à«‚àªšàª¨àª¾àª“ àª…àª¨à«àª¸àª¾àª° àª† àª§àª¿àª°àª¾àª£ àª–àª¾àª¤àª¾àª®àª¾àª‚ àªµà«àª¯àª¾àªœ àª‰àª§àª¾àª°àª¶à«‡ àª¤à«‡ àª®àª¨à«‡ àª•àª¬à«àª² àª…àª¨à«‡ àª¬àª‚àª§àª¨àª•àª°à«àª¤àª¾ àª›à«‡.</span>
                         </div>
                     </div>
 
                     <!-- Footer: Location, Date (Left) and Borrower Signature (Right) -->
                     <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 25px; font-weight: 700; font-size: 14.5px;">
                         <div style="line-height: 1.5; text-align: left;">
-                            <div>સ્થળઃ- ${loan.branchName}</div>
-                            <div>તારીખઃ- ${formatDateDMY(loan.date)}</div>
+                            <div>àª¸à«àª¥àª³àªƒ- ${loan.branchName}</div>
+                            <div>àª¤àª¾àª°à«€àª–àªƒ- ${formatDateDMY(loan.date)}</div>
                         </div>
                         <div style="text-align: right;">
                             <div style="display: inline-block; text-align: center;">
                                 <div style="height: 45px;"></div>
-                                <div style="margin-bottom: 3px;">સહી X ...............................................................</div>
-                                <div style="font-weight: 700;">(અરજદારનું નામ: ${loan.borrowerName})</div>
+                                <div style="margin-bottom: 3px;">àª¸àª¹à«€ X ...............................................................</div>
+                                <div style="font-weight: 700;">(àª…àª°àªœàª¦àª¾àª°àª¨à«àª‚ àª¨àª¾àª®: ${loan.borrowerName})</div>
                             </div>
                         </div>
                     </div>
                 </div>
                 ` : ''}
 
-                <!-- PAGE 5: LETTER OF AUTHORIZATION (અધિકાર પત્ર) -->
+                <!-- PAGE 5: LETTER OF AUTHORIZATION (àª…àª§àª¿àª•àª¾àª° àªªàª¤à«àª°) -->
                 ${false ? `
                 <div class="print-page-layout" style="padding: 10px 0; box-sizing:border-box; font-family:'Outfit', 'Noto Sans Gujarati', sans-serif; font-size:14.5px; line-height:1.45; color:#000000; background-color:#ffffff;">
                     <!-- Date on Right -->
                     <div style="text-align: right; font-weight: 700; margin-bottom: 8px;">
-                        તારીખ :- ${formatDateDMY(loan.date)}
+                        àª¤àª¾àª°à«€àª– :- ${formatDateDMY(loan.date)}
                     </div>
 
                     <!-- Centered Title -->
                     <div style="text-align: center; margin-bottom: 12px;">
-                        <h2 style="font-size: 20px; font-weight: 800; margin: 0; text-decoration: underline;">અધિકાર પત્ર</h2>
+                        <h2 style="font-size: 20px; font-weight: 800; margin: 0; text-decoration: underline;">àª…àª§àª¿àª•àª¾àª° àªªàª¤à«àª°</h2>
                     </div>
 
                     <!-- Recipient -->
                     <div style="font-weight: 700; margin-bottom: 10px; line-height: 1.4;">
-                        પ્રતિ,<br>
-                        મેનેજર સાહેબ,<br>
-                        ધી જૂનાગઢ કોમ. કો-ઓપ. બેંક લિ.<br>
-                        ${loan.branchName} શાખા.
+                        àªªà«àª°àª¤àª¿,<br>
+                        àª®à«‡àª¨à«‡àªœàª° àª¸àª¾àª¹à«‡àª¬,<br>
+                        àª§à«€ àªœà«‚àª¨àª¾àª—àª¢ àª•à«‹àª®. àª•à«‹-àª“àªª. àª¬à«‡àª‚àª• àª²àª¿.<br>
+                        ${loan.branchName} àª¶àª¾àª–àª¾.
                     </div>
 
                     <!-- Opening declaration -->
                     <p style="margin-bottom: 10px; text-align: justify; text-indent: 30px;">
-                        હું <strong>${loan.borrowerName}</strong> ધંધો : <strong>${loan.custOccupation || "-"}</strong>, ઉ.વ. <strong>${loan.custAge || "-"}</strong>, ધર્મે : <strong>${loan.custReligion || "-"}</strong>,  રહેવાસી : <strong>${loan.custAddress || "-"}</strong> નીચે પ્રમાણે લખી બંધાઉં છું કે :-
+                        àª¹à«àª‚ <strong>${loan.borrowerName}</strong> àª§àª‚àª§à«‹ : <strong>${loan.custOccupation || "-"}</strong>, àª‰.àªµ. <strong>${loan.custAge || "-"}</strong>, àª§àª°à«àª®à«‡ : <strong>${loan.custReligion || "-"}</strong>,  àª°àª¹à«‡àªµàª¾àª¸à«€ : <strong>${loan.custAddress || "-"}</strong> àª¨à«€àªšà«‡ àªªà«àª°àª®àª¾àª£à«‡ àª²àª–à«€ àª¬àª‚àª§àª¾àª‰àª‚ àª›à«àª‚ àª•à«‡ :-
                     </p>
 
                     <!-- 10 Points List -->
                     <div style="margin-bottom: 12px;">
                         <div style="display: flex; align-items: flex-start; margin-bottom: 5px;">
-                            <span style="font-weight: 800; min-width: 30px; flex-shrink: 0;">૧.</span>
-                            <span style="text-align: justify;">આજરોજ મારી પોતાની માલિકીના સોનાના દાગીના કે જેની નોંધ બેંક તરફથી મને મળેલ જુદી પહોંચમાં કરેલ છે, તે બેંકને થાલમાં આપી મેં રૂ. <strong>${parseFloat(loan.loanAmount).toLocaleString("en-IN")}/-</strong> અંકે રૂપિયા <strong>${gujWords}</strong> નું ધિરાણ મેળવેલ છે.</span>
+                            <span style="font-weight: 800; min-width: 30px; flex-shrink: 0;">à«§.</span>
+                            <span style="text-align: justify;">àª†àªœàª°à«‹àªœ àª®àª¾àª°à«€ àªªà«‹àª¤àª¾àª¨à«€ àª®àª¾àª²àª¿àª•à«€àª¨àª¾ àª¸à«‹àª¨àª¾àª¨àª¾ àª¦àª¾àª—à«€àª¨àª¾ àª•à«‡ àªœà«‡àª¨à«€ àª¨à«‹àª‚àª§ àª¬à«‡àª‚àª• àª¤àª°àª«àª¥à«€ àª®àª¨à«‡ àª®àª³à«‡àª² àªœà«àª¦à«€ àªªàª¹à«‹àª‚àªšàª®àª¾àª‚ àª•àª°à«‡àª² àª›à«‡, àª¤à«‡ àª¬à«‡àª‚àª•àª¨à«‡ àª¥àª¾àª²àª®àª¾àª‚ àª†àªªà«€ àª®à«‡àª‚ àª°à«‚. <strong>${parseFloat(loan.loanAmount).toLocaleString("en-IN")}/-</strong> àª…àª‚àª•à«‡ àª°à«‚àªªàª¿àª¯àª¾ <strong>${gujWords}</strong> àª¨à«àª‚ àª§àª¿àª°àª¾àª£ àª®à«‡àª³àªµà«‡àª² àª›à«‡.</span>
                         </div>
                         <div style="display: flex; align-items: flex-start; margin-bottom: 5px;">
-                            <span style="font-weight: 800; min-width: 30px; flex-shrink: 0;">૨.</span>
-                            <span style="text-align: justify;">સદરહુ રકમની આજરોજ મેં જુદી વચન ચિઠ્ઠી લખી છે અને ધિરાણની રકમ પર <strong>${loan.interestRate}</strong> ના વાર્ષિક વ્યાજ દરે, માસિક ચક્રવૃદ્ધિ લેખે ભરપાઈ કરવું છે.</span>
+                            <span style="font-weight: 800; min-width: 30px; flex-shrink: 0;">à«¨.</span>
+                            <span style="text-align: justify;">àª¸àª¦àª°àª¹à« àª°àª•àª®àª¨à«€ àª†àªœàª°à«‹àªœ àª®à«‡àª‚ àªœà«àª¦à«€ àªµàªšàª¨ àªšàª¿àª à«àª à«€ àª²àª–à«€ àª›à«‡ àª…àª¨à«‡ àª§àª¿àª°àª¾àª£àª¨à«€ àª°àª•àª® àªªàª° <strong>${loan.interestRate}</strong> àª¨àª¾ àªµàª¾àª°à«àª·àª¿àª• àªµà«àª¯àª¾àªœ àª¦àª°à«‡, àª®àª¾àª¸àª¿àª• àªšàª•à«àª°àªµà«ƒàª¦à«àª§àª¿ àª²à«‡àª–à«‡ àª­àª°àªªàª¾àªˆ àª•àª°àªµà«àª‚ àª›à«‡.</span>
                         </div>
                         <div style="display: flex; align-items: flex-start; margin-bottom: 5px;">
-                            <span style="font-weight: 800; min-width: 30px; flex-shrink: 0;">૩.</span>
-                            <span style="text-align: justify;">સદરહુ ધિરાણની રકમ ૧૨ માસમાં ચડત વ્યાજ સહિત બેંકને ભરપાઈ કરી આપવાની છે અને વ્યાજ દર મહિને જમા કરાવી આપવાનું છે, અન્યથા બેંક દર વર્ષે દર સેંકડે ૨.૦૦ % લેખે દંડનીય વ્યાજ સદર વ્યાજની રકમ ઉપરાંત વસુલ કરશે તે મને કબુલ-મંજુર છે.</span>
+                            <span style="font-weight: 800; min-width: 30px; flex-shrink: 0;">à«©.</span>
+                            <span style="text-align: justify;">àª¸àª¦àª°àª¹à« àª§àª¿àª°àª¾àª£àª¨à«€ àª°àª•àª® à«§à«¨ àª®àª¾àª¸àª®àª¾àª‚ àªšàª¡àª¤ àªµà«àª¯àª¾àªœ àª¸àª¹àª¿àª¤ àª¬à«‡àª‚àª•àª¨à«‡ àª­àª°àªªàª¾àªˆ àª•àª°à«€ àª†àªªàªµàª¾àª¨à«€ àª›à«‡ àª…àª¨à«‡ àªµà«àª¯àª¾àªœ àª¦àª° àª®àª¹àª¿àª¨à«‡ àªœàª®àª¾ àª•àª°àª¾àªµà«€ àª†àªªàªµàª¾àª¨à«àª‚ àª›à«‡, àª…àª¨à«àª¯àª¥àª¾ àª¬à«‡àª‚àª• àª¦àª° àªµàª°à«àª·à«‡ àª¦àª° àª¸à«‡àª‚àª•àª¡à«‡ à«¨.à«¦à«¦ % àª²à«‡àª–à«‡ àª¦àª‚àª¡àª¨à«€àª¯ àªµà«àª¯àª¾àªœ àª¸àª¦àª° àªµà«àª¯àª¾àªœàª¨à«€ àª°àª•àª® àª‰àªªàª°àª¾àª‚àª¤ àªµàª¸à«àª² àª•àª°àª¶à«‡ àª¤à«‡ àª®àª¨à«‡ àª•àª¬à«àª²-àª®àª‚àªœà«àª° àª›à«‡.</span>
                         </div>
                         <div style="display: flex; align-items: flex-start; margin-bottom: 5px;">
-                            <span style="font-weight: 800; min-width: 30px; flex-shrink: 0;">૪.</span>
-                            <span style="text-align: justify;">બેંક દ્વારા વ્યાજ દરમાં વધારા / ઘટાડાની જાહેરાત બેંકના નોટીસ બોર્ડ પર કરી તેની અમલવારી જાહેરાતમાં દર્શાવેલી તારીખથી કરશે જે મને કબુલ-મંજુર છે અને આવા વધારા / ઘટાડા અનુસાર બેંકને જે તે તારીખથી વ્યાજ ચુકવવા બંધાઉં છું.</span>
+                            <span style="font-weight: 800; min-width: 30px; flex-shrink: 0;">à«ª.</span>
+                            <span style="text-align: justify;">àª¬à«‡àª‚àª• àª¦à«àªµàª¾àª°àª¾ àªµà«àª¯àª¾àªœ àª¦àª°àª®àª¾àª‚ àªµàª§àª¾àª°àª¾ / àª˜àªŸàª¾àª¡àª¾àª¨à«€ àªœàª¾àª¹à«‡àª°àª¾àª¤ àª¬à«‡àª‚àª•àª¨àª¾ àª¨à«‹àªŸà«€àª¸ àª¬à«‹àª°à«àª¡ àªªàª° àª•àª°à«€ àª¤à«‡àª¨à«€ àª…àª®àª²àªµàª¾àª°à«€ àªœàª¾àª¹à«‡àª°àª¾àª¤àª®àª¾àª‚ àª¦àª°à«àª¶àª¾àªµà«‡àª²à«€ àª¤àª¾àª°à«€àª–àª¥à«€ àª•àª°àª¶à«‡ àªœà«‡ àª®àª¨à«‡ àª•àª¬à«àª²-àª®àª‚àªœà«àª° àª›à«‡ àª…àª¨à«‡ àª†àªµàª¾ àªµàª§àª¾àª°àª¾ / àª˜àªŸàª¾àª¡àª¾ àª…àª¨à«àª¸àª¾àª° àª¬à«‡àª‚àª•àª¨à«‡ àªœà«‡ àª¤à«‡ àª¤àª¾àª°à«€àª–àª¥à«€ àªµà«àª¯àª¾àªœ àªšà«àª•àªµàªµàª¾ àª¬àª‚àª§àª¾àª‰àª‚ àª›à«àª‚.</span>
                         </div>
                         <div style="display: flex; align-items: flex-start; margin-bottom: 5px;">
-                            <span style="font-weight: 800; min-width: 30px; flex-shrink: 0;">૫.</span>
-                            <span style="text-align: justify;">હું બેંકનો સભાસદ / નોમિનલ સભાસદ છું અને બેંકના નિયમો તથા પેટા નિયમો વાંચ્યા અને સમજ્યા છે અને તે મને બંધનકર્તા છે અને તેમાં વખતોવખત જે ફેરફાર થાય તે પાળવા બંધાઉં છું.</span>
+                            <span style="font-weight: 800; min-width: 30px; flex-shrink: 0;">à««.</span>
+                            <span style="text-align: justify;">àª¹à«àª‚ àª¬à«‡àª‚àª•àª¨à«‹ àª¸àª­àª¾àª¸àª¦ / àª¨à«‹àª®àª¿àª¨àª² àª¸àª­àª¾àª¸àª¦ àª›à«àª‚ àª…àª¨à«‡ àª¬à«‡àª‚àª•àª¨àª¾ àª¨àª¿àª¯àª®à«‹ àª¤àª¥àª¾ àªªà«‡àªŸàª¾ àª¨àª¿àª¯àª®à«‹ àªµàª¾àª‚àªšà«àª¯àª¾ àª…àª¨à«‡ àª¸àª®àªœà«àª¯àª¾ àª›à«‡ àª…àª¨à«‡ àª¤à«‡ àª®àª¨à«‡ àª¬àª‚àª§àª¨àª•àª°à«àª¤àª¾ àª›à«‡ àª…àª¨à«‡ àª¤à«‡àª®àª¾àª‚ àªµàª–àª¤à«‹àªµàª–àª¤ àªœà«‡ àª«à«‡àª°àª«àª¾àª° àª¥àª¾àª¯ àª¤à«‡ àªªàª¾àª³àªµàª¾ àª¬àª‚àª§àª¾àª‰àª‚ àª›à«àª‚.</span>
                         </div>
                         <div style="display: flex; align-items: flex-start; margin-bottom: 5px;">
-                            <span style="font-weight: 800; min-width: 30px; flex-shrink: 0;">૬.</span>
-                            <span style="text-align: justify;">મેં સોંપેલ દાગીના પર વારસનો હક છે. પરંતુ તેમને તે ખાતર કોઈપણ જાતનો વાંધો કરવાનો અધિકાર નથી.</span>
+                            <span style="font-weight: 800; min-width: 30px; flex-shrink: 0;">à«¬.</span>
+                            <span style="text-align: justify;">àª®à«‡àª‚ àª¸à«‹àª‚àªªà«‡àª² àª¦àª¾àª—à«€àª¨àª¾ àªªàª° àªµàª¾àª°àª¸àª¨à«‹ àª¹àª• àª›à«‡. àªªàª°àª‚àª¤à« àª¤à«‡àª®àª¨à«‡ àª¤à«‡ àª–àª¾àª¤àª° àª•à«‹àªˆàªªàª£ àªœàª¾àª¤àª¨à«‹ àªµàª¾àª‚àª§à«‹ àª•àª°àªµàª¾àª¨à«‹ àª…àª§àª¿àª•àª¾àª° àª¨àª¥à«€.</span>
                         </div>
                         <div style="display: flex; align-items: flex-start; margin-bottom: 5px;">
-                            <span style="font-weight: 800; min-width: 30px; flex-shrink: 0;">૭.</span>
-                            <span style="text-align: justify;">બેંક માંગે ત્યારે ધિરાણ મેળવેલ તમામ રકમ વ્યાજ સહીત ભરપાઈ કરવાની છે અને તેમ કરવામાં હું કસુર કરું તો બેંક થાલમાં મુકેલ દાગીના વેંચી શકે છે. આવી રીતે બેંકે વેંચેલ દાગીના પરત્વે મારે કશો વાંધો રહેશે નહિ, આ અંગેની સર્વ જવાબદારી મારી રહેશે અને જે કાંઈપણ ખર્ચ થશે તે મારે શિરે રહેશે, જે મારા વંશ-વારસોને કબુલ-મંજુર છે. દાગીના વેંચાતા ઉપજેલી કિંમતમાંથી બેંક પોતાનું લ્હેણું વસુલ કરી બાકી રકમ મને આપશે અથવા મારા વારસને આપશે.</span>
+                            <span style="font-weight: 800; min-width: 30px; flex-shrink: 0;">à«­.</span>
+                            <span style="text-align: justify;">àª¬à«‡àª‚àª• àª®àª¾àª‚àª—à«‡ àª¤à«àª¯àª¾àª°à«‡ àª§àª¿àª°àª¾àª£ àª®à«‡àª³àªµà«‡àª² àª¤àª®àª¾àª® àª°àª•àª® àªµà«àª¯àª¾àªœ àª¸àª¹à«€àª¤ àª­àª°àªªàª¾àªˆ àª•àª°àªµàª¾àª¨à«€ àª›à«‡ àª…àª¨à«‡ àª¤à«‡àª® àª•àª°àªµàª¾àª®àª¾àª‚ àª¹à«àª‚ àª•àª¸à«àª° àª•àª°à«àª‚ àª¤à«‹ àª¬à«‡àª‚àª• àª¥àª¾àª²àª®àª¾àª‚ àª®à«àª•à«‡àª² àª¦àª¾àª—à«€àª¨àª¾ àªµà«‡àª‚àªšà«€ àª¶àª•à«‡ àª›à«‡. àª†àªµà«€ àª°à«€àª¤à«‡ àª¬à«‡àª‚àª•à«‡ àªµà«‡àª‚àªšà«‡àª² àª¦àª¾àª—à«€àª¨àª¾ àªªàª°àª¤à«àªµà«‡ àª®àª¾àª°à«‡ àª•àª¶à«‹ àªµàª¾àª‚àª§à«‹ àª°àª¹à«‡àª¶à«‡ àª¨àª¹àª¿, àª† àª…àª‚àª—à«‡àª¨à«€ àª¸àª°à«àªµ àªœàªµàª¾àª¬àª¦àª¾àª°à«€ àª®àª¾àª°à«€ àª°àª¹à«‡àª¶à«‡ àª…àª¨à«‡ àªœà«‡ àª•àª¾àª‚àªˆàªªàª£ àª–àª°à«àªš àª¥àª¶à«‡ àª¤à«‡ àª®àª¾àª°à«‡ àª¶àª¿àª°à«‡ àª°àª¹à«‡àª¶à«‡, àªœà«‡ àª®àª¾àª°àª¾ àªµàª‚àª¶-àªµàª¾àª°àª¸à«‹àª¨à«‡ àª•àª¬à«àª²-àª®àª‚àªœà«àª° àª›à«‡. àª¦àª¾àª—à«€àª¨àª¾ àªµà«‡àª‚àªšàª¾àª¤àª¾ àª‰àªªàªœà«‡àª²à«€ àª•àª¿àª‚àª®àª¤àª®àª¾àª‚àª¥à«€ àª¬à«‡àª‚àª• àªªà«‹àª¤àª¾àª¨à«àª‚ àª²à«àª¹à«‡àª£à«àª‚ àªµàª¸à«àª² àª•àª°à«€ àª¬àª¾àª•à«€ àª°àª•àª® àª®àª¨à«‡ àª†àªªàª¶à«‡ àª…àª¥àªµàª¾ àª®àª¾àª°àª¾ àªµàª¾àª°àª¸àª¨à«‡ àª†àªªàª¶à«‡.</span>
                         </div>
                         <div style="display: flex; align-items: flex-start; margin-bottom: 5px;">
-                            <span style="font-weight: 800; min-width: 30px; flex-shrink: 0;">૮.</span>
-                            <span style="text-align: justify;">મેં થાલમાં મુકેલ દાગીના બેંક ફરીથી થાલમાં મૂકી શકશે.</span>
+                            <span style="font-weight: 800; min-width: 30px; flex-shrink: 0;">à«®.</span>
+                            <span style="text-align: justify;">àª®à«‡àª‚ àª¥àª¾àª²àª®àª¾àª‚ àª®à«àª•à«‡àª² àª¦àª¾àª—à«€àª¨àª¾ àª¬à«‡àª‚àª• àª«àª°à«€àª¥à«€ àª¥àª¾àª²àª®àª¾àª‚ àª®à«‚àª•à«€ àª¶àª•àª¶à«‡.</span>
                         </div>
                         <div style="display: flex; align-items: flex-start; margin-bottom: 5px;">
-                            <span style="font-weight: 800; min-width: 30px; flex-shrink: 0;">૯.</span>
-                            <span style="text-align: justify;">મેં બેંકને થાલમાં આપેલાં દાગીનાનું સીલબંધ પેકેટ RBI ના નિર્દેશો અનુસાર રીચેકીંગના હેતુ માટે સક્ષમ અધિકારી સમક્ષ ખોલીને રીચેકીંગ કરાવી શકશે જેમાં મારી હાજરીની જરૂરી રહેશે નહીં.</span>
+                            <span style="font-weight: 800; min-width: 30px; flex-shrink: 0;">à«¯.</span>
+                            <span style="text-align: justify;">àª®à«‡àª‚ àª¬à«‡àª‚àª•àª¨à«‡ àª¥àª¾àª²àª®àª¾àª‚ àª†àªªà«‡àª²àª¾àª‚ àª¦àª¾àª—à«€àª¨àª¾àª¨à«àª‚ àª¸à«€àª²àª¬àª‚àª§ àªªà«‡àª•à«‡àªŸ RBI àª¨àª¾ àª¨àª¿àª°à«àª¦à«‡àª¶à«‹ àª…àª¨à«àª¸àª¾àª° àª°à«€àªšà«‡àª•à«€àª‚àª—àª¨àª¾ àª¹à«‡àª¤à« àª®àª¾àªŸà«‡ àª¸àª•à«àª·àª® àª…àª§àª¿àª•àª¾àª°à«€ àª¸àª®àª•à«àª· àª–à«‹àª²à«€àª¨à«‡ àª°à«€àªšà«‡àª•à«€àª‚àª— àª•àª°àª¾àªµà«€ àª¶àª•àª¶à«‡ àªœà«‡àª®àª¾àª‚ àª®àª¾àª°à«€ àª¹àª¾àªœàª°à«€àª¨à«€ àªœàª°à«‚àª°à«€ àª°àª¹à«‡àª¶à«‡ àª¨àª¹à«€àª‚.</span>
                         </div>
                         <div style="display: flex; align-items: flex-start; margin-bottom: 5px;">
-                            <span style="font-weight: 800; min-width: 30px; flex-shrink: 0;">૧૦.</span>
-                            <span style="text-align: justify;">રીઝર્વ બેંક ઓફ ઇન્ડિયાની સહકારી બેંકો ઉપર વખતોવખત જારી કરેલી ધિરાણ ખાતાઓમાં વ્યાજ ઉધારવા અંગેની સૂચનાઓ અનુસાર આ ધિરાણ ખાતામાં વ્યાજ ઉધારશે તે મને કબુલ અને બંધનકર્તા છે.</span>
+                            <span style="font-weight: 800; min-width: 30px; flex-shrink: 0;">à«§à«¦.</span>
+                            <span style="text-align: justify;">àª°à«€àªàª°à«àªµ àª¬à«‡àª‚àª• àª“àª« àª‡àª¨à«àª¡àª¿àª¯àª¾àª¨à«€ àª¸àª¹àª•àª¾àª°à«€ àª¬à«‡àª‚àª•à«‹ àª‰àªªàª° àªµàª–àª¤à«‹àªµàª–àª¤ àªœàª¾àª°à«€ àª•àª°à«‡àª²à«€ àª§àª¿àª°àª¾àª£ àª–àª¾àª¤àª¾àª“àª®àª¾àª‚ àªµà«àª¯àª¾àªœ àª‰àª§àª¾àª°àªµàª¾ àª…àª‚àª—à«‡àª¨à«€ àª¸à«‚àªšàª¨àª¾àª“ àª…àª¨à«àª¸àª¾àª° àª† àª§àª¿àª°àª¾àª£ àª–àª¾àª¤àª¾àª®àª¾àª‚ àªµà«àª¯àª¾àªœ àª‰àª§àª¾àª°àª¶à«‡ àª¤à«‡ àª®àª¨à«‡ àª•àª¬à«àª² àª…àª¨à«‡ àª¬àª‚àª§àª¨àª•àª°à«àª¤àª¾ àª›à«‡.</span>
                         </div>
                     </div>
 
                     <!-- Footer: Location, Date (Left) and Borrower Signature (Right) -->
                     <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 25px; font-weight: 700; font-size: 14.5px;">
                         <div style="line-height: 1.5; text-align: left;">
-                            <div>સ્થળ : - ${loan.branchName}</div>
-                            <div>તારીખ :- ${formatDateDMY(loan.date)}</div>
+                            <div>àª¸à«àª¥àª³ : - ${loan.branchName}</div>
+                            <div>àª¤àª¾àª°à«€àª– :- ${formatDateDMY(loan.date)}</div>
                         </div>
                         <div style="text-align: right;">
                             <div style="height: 45px;"></div>
-                            <div style="margin-bottom: 3px;">સહી X ...............................................................</div>
+                            <div style="margin-bottom: 3px;">àª¸àª¹à«€ X ...............................................................</div>
                             <div style="font-weight: 700; padding-right: 80px;">(${loan.borrowerName})</div>
                         </div>
                     </div>
@@ -3765,8 +3769,8 @@ function printVoucher(loanId, format) {
                 ${hasKfsBullet ? `
                 <div class="print-page-layout print-kfs-layout" style="display:block !important; padding: 4mm 15mm; box-sizing:border-box; font-family:'Outfit', sans-serif; font-size:13.5px; line-height:1.35; color:#000000; background-color:#ffffff;">
                     <div style="text-align: center; margin-bottom: 8px; border-bottom: 2px solid #000000; padding-bottom: 6px;">
-                        <h2 style="font-size: 18px; font-weight: 800; margin: 0; text-transform: uppercase; letter-spacing: 0.5px;">KEY FACTS STATEMENT (KFS) – SUMMARY BOX</h2>
-                        <h3 style="font-size: 14px; font-weight: 700; margin: 2px 0 6px 0;">(Gold Loan – Bullet Repayment)</h3>
+                        <h2 style="font-size: 18px; font-weight: 800; margin: 0; text-transform: uppercase; letter-spacing: 0.5px;">KEY FACTS STATEMENT (KFS) â€“ SUMMARY BOX</h2>
+                        <h3 style="font-size: 14px; font-weight: 700; margin: 2px 0 6px 0;">(Gold Loan â€“ Bullet Repayment)</h3>
                     </div>
                     
                     <table class="kfs-table" style="width:100%; border-collapse:collapse; margin-bottom:8px; font-size:12px; border:1.5px solid #000000; color:#000000;">
@@ -3807,11 +3811,11 @@ function printVoucher(loanId, format) {
                             </tr>
                             <tr style="border-bottom:1px solid #000000;">
                                 <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Sanctioned Loan Amount</td>
-                                <td style="padding:3px 6px; font-weight:700;">₹ ${parseFloat(loan.loanAmount).toLocaleString("en-IN")}</td>
+                                <td style="padding:3px 6px; font-weight:700;">â‚¹ ${parseFloat(loan.loanAmount).toLocaleString("en-IN")}</td>
                             </tr>
                             <tr style="border-bottom:1px solid #000000;">
                                 <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Disbursed Amount</td>
-                                <td style="padding:3px 6px; font-weight:700;">₹ ${parseFloat(loan.loanAmount).toLocaleString("en-IN")}</td>
+                                <td style="padding:3px 6px; font-weight:700;">â‚¹ ${parseFloat(loan.loanAmount).toLocaleString("en-IN")}</td>
                             </tr>
                             <tr style="border-bottom:1px solid #000000;">
                                 <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Tenure of Loan</td>
@@ -3843,19 +3847,19 @@ function printVoucher(loanId, format) {
                             </tr>
                             <tr style="border-bottom:1px solid #000000;">
                                 <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Processing Charges</td>
-                                <td style="padding:3px 6px;">₹ ${procCharges}</td>
+                                <td style="padding:3px 6px;">â‚¹ ${procCharges}</td>
                             </tr>
                             <tr style="border-bottom:1px solid #000000;">
                                 <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Appraiser Charges</td>
-                                <td style="padding:3px 6px;">₹ ${appraiserCharges}</td>
+                                <td style="padding:3px 6px;">â‚¹ ${appraiserCharges}</td>
                             </tr>
                             <tr style="border-bottom:1px solid #000000;">
                                 <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Documentation Charges</td>
-                                <td style="padding:3px 6px;">₹ ${docCharges}</td>
+                                <td style="padding:3px 6px;">â‚¹ ${docCharges}</td>
                             </tr>
                             <tr style="border-bottom:1px solid #000000;">
                                 <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Other Charges (if any)</td>
-                                <td style="padding:3px 6px;">₹ ${otherChargesSum}</td>
+                                <td style="padding:3px 6px;">â‚¹ ${otherChargesSum}</td>
                             </tr>
                             <tr style="border-bottom:1px solid #000000;">
                                 <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Penal Charges (in case of default)</td>
@@ -3879,7 +3883,7 @@ function printVoucher(loanId, format) {
                             </tr>
                             <tr style="border-bottom:1px solid #000000;">
                                 <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Total Amount Payable at Maturity</td>
-                                <td style="padding:3px 6px; font-weight:700;">₹ ${parseFloat(loan.loanAmount).toLocaleString("en-IN")} (Subject to interest accrued as per terms)</td>
+                                <td style="padding:3px 6px; font-weight:700;">â‚¹ ${parseFloat(loan.loanAmount).toLocaleString("en-IN")} (Subject to interest accrued as per terms)</td>
                             </tr>
                             <tr style="border-bottom:1px solid #000000;">
                                 <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Prepayment / Foreclosure Charges</td>
@@ -3914,8 +3918,8 @@ function printVoucher(loanId, format) {
                 ${hasKfsOverdraft ? `
                 <div class="print-page-layout print-kfs-layout" style="display:block !important; padding: 4mm 15mm; box-sizing:border-box; font-family:'Outfit', sans-serif; font-size:13.5px; line-height:1.35; color:#000000; background-color:#ffffff;">
                     <div style="text-align: center; margin-bottom: 8px; border-bottom: 2px solid #000000; padding-bottom: 6px;">
-                        <h2 style="font-size: 18px; font-weight: 800; margin: 0; text-transform: uppercase; letter-spacing: 0.5px;">KEY FACTS STATEMENT (KFS) – SUMMARY BOX</h2>
-                        <h3 style="font-size: 14px; font-weight: 700; margin: 2px 0 6px 0;">(Gold Loan – Overdraft Facility)</h3>
+                        <h2 style="font-size: 18px; font-weight: 800; margin: 0; text-transform: uppercase; letter-spacing: 0.5px;">KEY FACTS STATEMENT (KFS) â€“ SUMMARY BOX</h2>
+                        <h3 style="font-size: 14px; font-weight: 700; margin: 2px 0 6px 0;">(Gold Loan â€“ Overdraft Facility)</h3>
                     </div>
                     
                     <table class="kfs-table" style="width:100%; border-collapse:collapse; margin-bottom:8px; font-size:12px; border:1.5px solid #000000; color:#000000;">
@@ -3948,7 +3952,7 @@ function printVoucher(loanId, format) {
                             </tr>
                             <tr style="border-bottom:1px solid #000000;">
                                 <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Type of Facility</td>
-                                <td style="padding:3px 6px;">Gold Loan – Overdraft (OD)</td>
+                                <td style="padding:3px 6px;">Gold Loan â€“ Overdraft (OD)</td>
                             </tr>
                             <tr style="border-bottom:1px solid #000000;">
                                 <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Purpose of Loan</td>
@@ -3956,15 +3960,15 @@ function printVoucher(loanId, format) {
                             </tr>
                             <tr style="border-bottom:1px solid #000000;">
                                 <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Sanctioned Limit</td>
-                                <td style="padding:3px 6px; font-weight:700;">₹ ${parseFloat(loan.loanAmount).toLocaleString("en-IN")}</td>
+                                <td style="padding:3px 6px; font-weight:700;">â‚¹ ${parseFloat(loan.loanAmount).toLocaleString("en-IN")}</td>
                             </tr>
                             <tr style="border-bottom:1px solid #000000;">
                                 <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Available Drawing Limit</td>
-                                <td style="padding:3px 6px; font-weight:700;">₹ ${parseFloat(loan.loanAmount).toLocaleString("en-IN")}</td>
+                                <td style="padding:3px 6px; font-weight:700;">â‚¹ ${parseFloat(loan.loanAmount).toLocaleString("en-IN")}</td>
                             </tr>
                             <tr style="border-bottom:1px solid #000000;">
                                 <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Amount Disbursed / Utilised (Initial)</td>
-                                <td style="padding:3px 6px; font-weight:700;">₹ ${parseFloat(loan.loanAmount).toLocaleString("en-IN")}</td>
+                                <td style="padding:3px 6px; font-weight:700;">â‚¹ ${parseFloat(loan.loanAmount).toLocaleString("en-IN")}</td>
                             </tr>
                             <tr style="border-bottom:1px solid #000000;">
                                 <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Facility Validity / Maturity Date</td>
@@ -3984,19 +3988,19 @@ function printVoucher(loanId, format) {
                             </tr>
                             <tr style="border-bottom:1px solid #000000;">
                                 <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Processing Charges</td>
-                                <td style="padding:3px 6px;">₹ ${procCharges}</td>
+                                <td style="padding:3px 6px;">â‚¹ ${procCharges}</td>
                             </tr>
                             <tr style="border-bottom:1px solid #000000;">
                                 <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Gold Appraiser Charges</td>
-                                <td style="padding:3px 6px;">₹ ${appraiserCharges}</td>
+                                <td style="padding:3px 6px;">â‚¹ ${appraiserCharges}</td>
                             </tr>
                             <tr style="border-bottom:1px solid #000000;">
                                 <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Documentation Charges</td>
-                                <td style="padding:3px 6px;">₹ ${docCharges}</td>
+                                <td style="padding:3px 6px;">â‚¹ ${docCharges}</td>
                             </tr>
                             <tr style="border-bottom:1px solid #000000;">
                                 <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Other Charges (if any)</td>
-                                <td style="padding:3px 6px;">₹ ${otherChargesSum}</td>
+                                <td style="padding:3px 6px;">â‚¹ ${otherChargesSum}</td>
                             </tr>
                             <tr style="border-bottom:1px solid #000000;">
                                 <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Penal Charges</td>
@@ -4059,8 +4063,8 @@ function printVoucher(loanId, format) {
                 ${hasKfsInstallment ? `
                 <div class="print-page-layout print-kfs-layout" style="display:block !important; padding: 4mm 15mm; box-sizing:border-box; font-family:'Outfit', sans-serif; font-size:13.5px; line-height:1.35; color:#000000; background-color:#ffffff;">
                     <div style="text-align: center; margin-bottom: 8px; border-bottom: 2px solid #000000; padding-bottom: 6px;">
-                        <h2 style="font-size: 18px; font-weight: 800; margin: 0; text-transform: uppercase; letter-spacing: 0.5px;">KEY FACTS STATEMENT (KFS) – SUMMARY BOX</h2>
-                        <h3 style="font-size: 14px; font-weight: 700; margin: 2px 0 6px 0;">(Gold Loan – Installment / EMI Repayment)</h3>
+                        <h2 style="font-size: 18px; font-weight: 800; margin: 0; text-transform: uppercase; letter-spacing: 0.5px;">KEY FACTS STATEMENT (KFS) â€“ SUMMARY BOX</h2>
+                        <h3 style="font-size: 14px; font-weight: 700; margin: 2px 0 6px 0;">(Gold Loan â€“ Installment / EMI Repayment)</h3>
                     </div>
                     
                     <table class="kfs-table" style="width:100%; border-collapse:collapse; margin-bottom:8px; font-size:12px; border:1.5px solid #000000; color:#000000;">
@@ -4101,11 +4105,11 @@ function printVoucher(loanId, format) {
                             </tr>
                             <tr style="border-bottom:1px solid #000000;">
                                 <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Sanctioned Loan Amount</td>
-                                <td style="padding:3px 6px; font-weight:700;">₹ ${parseFloat(loan.loanAmount).toLocaleString("en-IN")}</td>
+                                <td style="padding:3px 6px; font-weight:700;">â‚¹ ${parseFloat(loan.loanAmount).toLocaleString("en-IN")}</td>
                             </tr>
                             <tr style="border-bottom:1px solid #000000;">
                                 <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Disbursed Amount</td>
-                                <td style="padding:3px 6px; font-weight:700;">₹ ${parseFloat(loan.loanAmount).toLocaleString("en-IN")}</td>
+                                <td style="padding:3px 6px; font-weight:700;">â‚¹ ${parseFloat(loan.loanAmount).toLocaleString("en-IN")}</td>
                             </tr>
                             <tr style="border-bottom:1px solid #000000;">
                                 <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Loan Tenure</td>
@@ -4129,7 +4133,7 @@ function printVoucher(loanId, format) {
                             </tr>
                             <tr style="border-bottom:1px solid #000000;">
                                 <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">EMI Amount</td>
-                                <td style="padding:3px 6px; font-weight:700;">₹ ${parseFloat(loan.emiAmount || 0).toLocaleString("en-IN")}</td>
+                                <td style="padding:3px 6px; font-weight:700;">â‚¹ ${parseFloat(loan.emiAmount || 0).toLocaleString("en-IN")}</td>
                             </tr>
                             <tr style="border-bottom:1px solid #000000;">
                                 <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">First EMI Due Date</td>
@@ -4141,19 +4145,19 @@ function printVoucher(loanId, format) {
                             </tr>
                             <tr style="border-bottom:1px solid #000000;">
                                 <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Processing Charges</td>
-                                <td style="padding:3px 6px;">₹ ${procCharges}</td>
+                                <td style="padding:3px 6px;">â‚¹ ${procCharges}</td>
                             </tr>
                             <tr style="border-bottom:1px solid #000000;">
                                 <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Gold Appraiser Charges</td>
-                                <td style="padding:3px 6px;">₹ ${appraiserCharges}</td>
+                                <td style="padding:3px 6px;">â‚¹ ${appraiserCharges}</td>
                             </tr>
                             <tr style="border-bottom:1px solid #000000;">
                                 <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Documentation Charges</td>
-                                <td style="padding:3px 6px;">₹ ${docCharges}</td>
+                                <td style="padding:3px 6px;">â‚¹ ${docCharges}</td>
                             </tr>
                             <tr style="border-bottom:1px solid #000000;">
                                 <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Other Charges (if any)</td>
-                                <td style="padding:3px 6px;">₹ ${otherChargesSum}</td>
+                                <td style="padding:3px 6px;">â‚¹ ${otherChargesSum}</td>
                             </tr>
                             <tr style="border-bottom:1px solid #000000;">
                                 <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Penal Charges</td>
@@ -4177,7 +4181,7 @@ function printVoucher(loanId, format) {
                             </tr>
                             <tr style="border-bottom:1px solid #000000;">
                                 <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Total Amount Payable by Borrower</td>
-                                <td style="padding:3px 6px; font-weight:700;">₹ ${(parseFloat(loan.emiAmount || 0) * (loan.tenureMonths || 36)).toLocaleString("en-IN")}</td>
+                                <td style="padding:3px 6px; font-weight:700;">â‚¹ ${(parseFloat(loan.emiAmount || 0) * (loan.tenureMonths || 36)).toLocaleString("en-IN")}</td>
                             </tr>
                             <tr style="border-bottom:1px solid #000000;">
                                 <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Prepayment / Foreclosure Charges</td>
@@ -4263,8 +4267,8 @@ function printVoucher(loanId, format) {
             kfsContent = `
             <div class="print-voucher print-kfs-layout" style="width:100%; box-sizing:border-box; font-family:'Outfit', sans-serif; color:#000000; background-color:#ffffff; padding: 4mm 15mm; font-size: 13.5px; line-height: 1.35;">
                 <div style="text-align: center; margin-bottom: 8px; border-bottom: 2px solid #000000; padding-bottom: 6px;">
-                    <h2 style="font-size: 18px; font-weight: 800; margin: 0; text-transform: uppercase; letter-spacing: 0.5px;">KEY FACTS STATEMENT (KFS) – SUMMARY BOX</h2>
-                    <h3 style="font-size: 14px; font-weight: 700; margin: 2px 0 6px 0;">(Gold Loan – Installment / EMI Repayment)</h3>
+                    <h2 style="font-size: 18px; font-weight: 800; margin: 0; text-transform: uppercase; letter-spacing: 0.5px;">KEY FACTS STATEMENT (KFS) â€“ SUMMARY BOX</h2>
+                    <h3 style="font-size: 14px; font-weight: 700; margin: 2px 0 6px 0;">(Gold Loan â€“ Installment / EMI Repayment)</h3>
                 </div>
                 
                 <table class="kfs-table" style="width:100%; border-collapse:collapse; margin-bottom:8px; font-size:12px; border:1.5px solid #000000; color:#000000;">
@@ -4305,11 +4309,11 @@ function printVoucher(loanId, format) {
                         </tr>
                         <tr style="border-bottom:1px solid #000000;">
                             <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Sanctioned Loan Amount</td>
-                            <td style="padding:3px 6px; font-weight:700;">₹ ${parseFloat(loan.loanAmount).toLocaleString("en-IN")}</td>
+                            <td style="padding:3px 6px; font-weight:700;">â‚¹ ${parseFloat(loan.loanAmount).toLocaleString("en-IN")}</td>
                         </tr>
                         <tr style="border-bottom:1px solid #000000;">
                             <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Disbursed Amount</td>
-                            <td style="padding:3px 6px; font-weight:700;">₹ ${parseFloat(loan.loanAmount).toLocaleString("en-IN")}</td>
+                            <td style="padding:3px 6px; font-weight:700;">â‚¹ ${parseFloat(loan.loanAmount).toLocaleString("en-IN")}</td>
                         </tr>
                         <tr style="border-bottom:1px solid #000000;">
                             <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Loan Tenure</td>
@@ -4333,7 +4337,7 @@ function printVoucher(loanId, format) {
                         </tr>
                         <tr style="border-bottom:1px solid #000000;">
                             <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">EMI Amount</td>
-                            <td style="padding:3px 6px; font-weight:700;">₹ ${emiAmountVal.toLocaleString("en-IN")}</td>
+                            <td style="padding:3px 6px; font-weight:700;">â‚¹ ${emiAmountVal.toLocaleString("en-IN")}</td>
                         </tr>
                         <tr style="border-bottom:1px solid #000000;">
                             <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">First EMI Due Date</td>
@@ -4345,19 +4349,19 @@ function printVoucher(loanId, format) {
                         </tr>
                         <tr style="border-bottom:1px solid #000000;">
                             <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Processing Charges</td>
-                            <td style="padding:3px 6px;">₹ ${procCharges}</td>
+                            <td style="padding:3px 6px;">â‚¹ ${procCharges}</td>
                         </tr>
                         <tr style="border-bottom:1px solid #000000;">
                             <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Gold Appraiser Charges</td>
-                            <td style="padding:3px 6px;">₹ ${appraiserCharges}</td>
+                            <td style="padding:3px 6px;">â‚¹ ${appraiserCharges}</td>
                         </tr>
                         <tr style="border-bottom:1px solid #000000;">
                             <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Documentation Charges</td>
-                            <td style="padding:3px 6px;">₹ ${docCharges}</td>
+                            <td style="padding:3px 6px;">â‚¹ ${docCharges}</td>
                         </tr>
                         <tr style="border-bottom:1px solid #000000;">
                             <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Other Charges (if any)</td>
-                            <td style="padding:3px 6px;">₹ ${otherChargesSum}</td>
+                            <td style="padding:3px 6px;">â‚¹ ${otherChargesSum}</td>
                         </tr>
                         <tr style="border-bottom:1px solid #000000;">
                             <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Penal Charges</td>
@@ -4381,7 +4385,7 @@ function printVoucher(loanId, format) {
                         </tr>
                         <tr style="border-bottom:1px solid #000000;">
                             <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Total Amount Payable by Borrower</td>
-                            <td style="padding:3px 6px; font-weight:700;">₹ ${totalPayableVal.toLocaleString("en-IN")}</td>
+                            <td style="padding:3px 6px; font-weight:700;">â‚¹ ${totalPayableVal.toLocaleString("en-IN")}</td>
                         </tr>
                         <tr style="border-bottom:1px solid #000000;">
                             <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Prepayment / Foreclosure Charges</td>
@@ -4415,8 +4419,8 @@ function printVoucher(loanId, format) {
             kfsContent = `
             <div class="print-voucher print-kfs-layout" style="width:100%; box-sizing:border-box; font-family:'Outfit', sans-serif; color:#000000; background-color:#ffffff; padding: 4mm 15mm; font-size: 13.5px; line-height: 1.35;">
                 <div style="text-align: center; margin-bottom: 8px; border-bottom: 2px solid #000000; padding-bottom: 6px;">
-                    <h2 style="font-size: 18px; font-weight: 800; margin: 0; text-transform: uppercase; letter-spacing: 0.5px;">KEY FACTS STATEMENT (KFS) – SUMMARY BOX</h2>
-                    <h3 style="font-size: 14px; font-weight: 700; margin: 2px 0 6px 0;">(Gold Loan – Overdraft Facility)</h3>
+                    <h2 style="font-size: 18px; font-weight: 800; margin: 0; text-transform: uppercase; letter-spacing: 0.5px;">KEY FACTS STATEMENT (KFS) â€“ SUMMARY BOX</h2>
+                    <h3 style="font-size: 14px; font-weight: 700; margin: 2px 0 6px 0;">(Gold Loan â€“ Overdraft Facility)</h3>
                 </div>
                 
                 <table class="kfs-table" style="width:100%; border-collapse:collapse; margin-bottom:8px; font-size:12px; border:1.5px solid #000000; color:#000000;">
@@ -4457,7 +4461,7 @@ function printVoucher(loanId, format) {
                         </tr>
                         <tr style="border-bottom:1px solid #000000;">
                             <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Sanctioned Limit</td>
-                            <td style="padding:3px 6px; font-weight:700;">₹ ${parseFloat(loan.loanAmount).toLocaleString("en-IN")}</td>
+                            <td style="padding:3px 6px; font-weight:700;">â‚¹ ${parseFloat(loan.loanAmount).toLocaleString("en-IN")}</td>
                         </tr>
                         <tr style="border-bottom:1px solid #000000;">
                             <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Tenure of Facility</td>
@@ -4481,19 +4485,19 @@ function printVoucher(loanId, format) {
                         </tr>
                         <tr style="border-bottom:1px solid #000000;">
                             <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Processing Charges</td>
-                            <td style="padding:3px 6px;">₹ ${procCharges}</td>
+                            <td style="padding:3px 6px;">â‚¹ ${procCharges}</td>
                         </tr>
                         <tr style="border-bottom:1px solid #000000;">
                             <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Gold Appraiser Charges</td>
-                            <td style="padding:3px 6px;">₹ ${appraiserCharges}</td>
+                            <td style="padding:3px 6px;">â‚¹ ${appraiserCharges}</td>
                         </tr>
                         <tr style="border-bottom:1px solid #000000;">
                             <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Documentation Charges</td>
-                            <td style="padding:3px 6px;">₹ ${docCharges}</td>
+                            <td style="padding:3px 6px;">â‚¹ ${docCharges}</td>
                         </tr>
                         <tr style="border-bottom:1px solid #000000;">
                             <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Other Charges (if any)</td>
-                            <td style="padding:3px 6px;">₹ ${otherChargesSum}</td>
+                            <td style="padding:3px 6px;">â‚¹ ${otherChargesSum}</td>
                         </tr>
                         <tr style="border-bottom:1px solid #000000;">
                             <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Penal Charges</td>
@@ -4551,8 +4555,8 @@ function printVoucher(loanId, format) {
             kfsContent = `
             <div class="print-voucher print-kfs-layout" style="width:100%; box-sizing:border-box; font-family:'Outfit', sans-serif; color:#000000; background-color:#ffffff; padding: 4mm 15mm; font-size: 13.5px; line-height: 1.35;">
                 <div style="text-align: center; margin-bottom: 8px; border-bottom: 2px solid #000000; padding-bottom: 6px;">
-                    <h2 style="font-size: 18px; font-weight: 800; margin: 0; text-transform: uppercase; letter-spacing: 0.5px;">KEY FACTS STATEMENT (KFS) – SUMMARY BOX</h2>
-                    <h3 style="font-size: 14px; font-weight: 700; margin: 2px 0 0 0;">(Gold Loan – Bullet Repayment)</h3>
+                    <h2 style="font-size: 18px; font-weight: 800; margin: 0; text-transform: uppercase; letter-spacing: 0.5px;">KEY FACTS STATEMENT (KFS) â€“ SUMMARY BOX</h2>
+                    <h3 style="font-size: 14px; font-weight: 700; margin: 2px 0 0 0;">(Gold Loan â€“ Bullet Repayment)</h3>
                 </div>
                 
                 <table class="kfs-table" style="width:100%; border-collapse:collapse; margin-bottom:10px; font-size:12px; border:1.5px solid #000000; color:#000000;">
@@ -4593,11 +4597,11 @@ function printVoucher(loanId, format) {
                         </tr>
                         <tr style="border-bottom:1px solid #000000;">
                             <td style="border-right:1.5px solid #000000; padding:4px 8px; font-weight:700;">Sanctioned Loan Amount</td>
-                            <td style="padding:4px 8px; font-weight:700;">₹ ${parseFloat(loan.loanAmount).toLocaleString("en-IN")}</td>
+                            <td style="padding:4px 8px; font-weight:700;">â‚¹ ${parseFloat(loan.loanAmount).toLocaleString("en-IN")}</td>
                         </tr>
                         <tr style="border-bottom:1px solid #000000;">
                             <td style="border-right:1.5px solid #000000; padding:4px 8px; font-weight:700;">Disbursed Amount</td>
-                            <td style="padding:4px 8px; font-weight:700;">₹ ${parseFloat(loan.loanAmount).toLocaleString("en-IN")}</td>
+                            <td style="padding:4px 8px; font-weight:700;">â‚¹ ${parseFloat(loan.loanAmount).toLocaleString("en-IN")}</td>
                         </tr>
                         <tr style="border-bottom:1px solid #000000;">
                             <td style="border-right:1.5px solid #000000; padding:4px 8px; font-weight:700;">Tenure of Loan</td>
@@ -4629,19 +4633,19 @@ function printVoucher(loanId, format) {
                         </tr>
                         <tr style="border-bottom:1px solid #000000;">
                             <td style="border-right:1.5px solid #000000; padding:4px 8px; font-weight:700;">Processing Charges</td>
-                            <td style="padding:4px 8px;">₹ ${procCharges}</td>
+                            <td style="padding:4px 8px;">â‚¹ ${procCharges}</td>
                         </tr>
                         <tr style="border-bottom:1px solid #000000;">
                             <td style="border-right:1.5px solid #000000; padding:4px 8px; font-weight:700;">Appraiser Charges</td>
-                            <td style="padding:4px 8px;">₹ ${appraiserCharges}</td>
+                            <td style="padding:4px 8px;">â‚¹ ${appraiserCharges}</td>
                         </tr>
                         <tr style="border-bottom:1px solid #000000;">
                             <td style="border-right:1.5px solid #000000; padding:4px 8px; font-weight:700;">Documentation Charges</td>
-                            <td style="padding:4px 8px;">₹ ${docCharges}</td>
+                            <td style="padding:4px 8px;">â‚¹ ${docCharges}</td>
                         </tr>
                         <tr style="border-bottom:1px solid #000000;">
                             <td style="border-right:1.5px solid #000000; padding:4px 8px; font-weight:700;">Other Charges (if any)</td>
-                            <td style="padding:4px 8px;">₹ ${otherChargesSum}</td>
+                            <td style="padding:4px 8px;">â‚¹ ${otherChargesSum}</td>
                         </tr>
                         <tr style="border-bottom:1px solid #000000;">
                             <td style="border-right:1.5px solid #000000; padding:4px 8px; font-weight:700;">Penal Charges (in case of default)</td>
@@ -4665,7 +4669,7 @@ function printVoucher(loanId, format) {
                         </tr>
                         <tr style="border-bottom:1px solid #000000;">
                             <td style="border-right:1.5px solid #000000; padding:4px 8px; font-weight:700;">Total Amount Payable at Maturity</td>
-                            <td style="padding:4px 8px; font-weight:700;">₹ ${parseFloat(loan.loanAmount).toLocaleString("en-IN")} (Subject to interest accrued as per terms)</td>
+                            <td style="padding:4px 8px; font-weight:700;">â‚¹ ${parseFloat(loan.loanAmount).toLocaleString("en-IN")} (Subject to interest accrued as per terms)</td>
                         </tr>
                         <tr style="border-bottom:1px solid #000000;">
                             <td style="border-right:1.5px solid #000000; padding:4px 8px; font-weight:700;">Prepayment / Foreclosure Charges</td>
@@ -4705,26 +4709,26 @@ function printVoucher(loanId, format) {
 
 // Convert Number to Gujarati Words
 function numberToGujaratiWords(amount) {
-    if (amount === 0) return "શૂન્ય પુરા";
+    if (amount === 0) return "àª¶à«‚àª¨à«àª¯ àªªà«àª°àª¾";
     
     const gujaratiNumbers = [
-        '', 'એક', 'બે', 'ત્રણ', 'ચાર', 'પાંચ', 'છ', 'સાત', 'આઠ', 'નવ', 'દસ',
-        'અગિયાર', 'બાર', 'તેર', 'ચૌદ', 'પંદર', 'સોળ', 'સત્તર', 'અઢાર', 'ઓગણીસ', 'વીસ',
-        'એકવીસ', 'બાવીસ', 'ત્રેવીસ', 'ચોવીસ', 'પચ્ચીસ', 'છવ્વીસ', 'સત્તાવીસ', 'અઠ્ઠાવીસ', 'ઓગણત્રીસ', 'ત્રીસ',
-        'એકત્રીસ', 'બત્રીસ', 'ત્રેત્રીસ', 'ચોત્રીસ', 'પાંત્રીસ', 'છત્રીસ', 'સાડત્રીસ', 'આડત્રીસ', 'ઓગણચાલીસ', 'ચાલીસ',
-        'એકતાલીસ', 'બેતાલીસ', 'ત્રેતાલીસ', 'ચોતાલીસ', 'પિંચતાલીસ', 'છતાલીસ', 'સુડતાલીસ', 'અડતાલીસ', 'ઓગણપચાસ', 'પચાસ',
-        'એકાવન', 'બાવન', 'ત્રેપન', 'ચોપન', 'પંચાવન', 'છપ્પન', 'સત્તાવન', 'અઠ્ઠાવન', 'ઓગણસાઈઠ', 'સાઈઠ',
-        'એકસઠ', 'બાસઠ', 'ત્રેસઠ', 'ચોસઠ', 'પાંસઠ', 'છાસઠ', 'સડસઠ', 'અડસઠ', 'ઓગણસિત્તેર', 'સિત્તેર',
-        'એકોતેર', 'બોતેર', 'ત્યોતેર', 'ચોતેર', 'પંચોતેર', 'છોતેર', 'સિત્યોતેર', 'ઇત્યોતેર', 'ઓગણએસી', 'એસી',
-        'એક્યાસી', 'બ્યાસી', 'ત્યાસી', 'ચોર્યાસી', 'પંચાસી', 'છ્યાસી', 'સિત્યાસી', 'અઠ્યાસી', 'નેવ્યાસી', 'નેવુ',
-        'એકાણુ', 'બાણુ', 'ત્રાણુ', 'ચોરાણુ', 'પંચાણુ', 'છન્નુ', 'સત્તાણુ', 'અઠ્ઠાણુ', 'નવાણુ'
+        '', 'àªàª•', 'àª¬à«‡', 'àª¤à«àª°àª£', 'àªšàª¾àª°', 'àªªàª¾àª‚àªš', 'àª›', 'àª¸àª¾àª¤', 'àª†àª ', 'àª¨àªµ', 'àª¦àª¸',
+        'àª…àª—àª¿àª¯àª¾àª°', 'àª¬àª¾àª°', 'àª¤à«‡àª°', 'àªšà«Œàª¦', 'àªªàª‚àª¦àª°', 'àª¸à«‹àª³', 'àª¸àª¤à«àª¤àª°', 'àª…àª¢àª¾àª°', 'àª“àª—àª£à«€àª¸', 'àªµà«€àª¸',
+        'àªàª•àªµà«€àª¸', 'àª¬àª¾àªµà«€àª¸', 'àª¤à«àª°à«‡àªµà«€àª¸', 'àªšà«‹àªµà«€àª¸', 'àªªàªšà«àªšà«€àª¸', 'àª›àªµà«àªµà«€àª¸', 'àª¸àª¤à«àª¤àª¾àªµà«€àª¸', 'àª…àª à«àª àª¾àªµà«€àª¸', 'àª“àª—àª£àª¤à«àª°à«€àª¸', 'àª¤à«àª°à«€àª¸',
+        'àªàª•àª¤à«àª°à«€àª¸', 'àª¬àª¤à«àª°à«€àª¸', 'àª¤à«àª°à«‡àª¤à«àª°à«€àª¸', 'àªšà«‹àª¤à«àª°à«€àª¸', 'àªªàª¾àª‚àª¤à«àª°à«€àª¸', 'àª›àª¤à«àª°à«€àª¸', 'àª¸àª¾àª¡àª¤à«àª°à«€àª¸', 'àª†àª¡àª¤à«àª°à«€àª¸', 'àª“àª—àª£àªšàª¾àª²à«€àª¸', 'àªšàª¾àª²à«€àª¸',
+        'àªàª•àª¤àª¾àª²à«€àª¸', 'àª¬à«‡àª¤àª¾àª²à«€àª¸', 'àª¤à«àª°à«‡àª¤àª¾àª²à«€àª¸', 'àªšà«‹àª¤àª¾àª²à«€àª¸', 'àªªàª¿àª‚àªšàª¤àª¾àª²à«€àª¸', 'àª›àª¤àª¾àª²à«€àª¸', 'àª¸à«àª¡àª¤àª¾àª²à«€àª¸', 'àª…àª¡àª¤àª¾àª²à«€àª¸', 'àª“àª—àª£àªªàªšàª¾àª¸', 'àªªàªšàª¾àª¸',
+        'àªàª•àª¾àªµàª¨', 'àª¬àª¾àªµàª¨', 'àª¤à«àª°à«‡àªªàª¨', 'àªšà«‹àªªàª¨', 'àªªàª‚àªšàª¾àªµàª¨', 'àª›àªªà«àªªàª¨', 'àª¸àª¤à«àª¤àª¾àªµàª¨', 'àª…àª à«àª àª¾àªµàª¨', 'àª“àª—àª£àª¸àª¾àªˆàª ', 'àª¸àª¾àªˆàª ',
+        'àªàª•àª¸àª ', 'àª¬àª¾àª¸àª ', 'àª¤à«àª°à«‡àª¸àª ', 'àªšà«‹àª¸àª ', 'àªªàª¾àª‚àª¸àª ', 'àª›àª¾àª¸àª ', 'àª¸àª¡àª¸àª ', 'àª…àª¡àª¸àª ', 'àª“àª—àª£àª¸àª¿àª¤à«àª¤à«‡àª°', 'àª¸àª¿àª¤à«àª¤à«‡àª°',
+        'àªàª•à«‹àª¤à«‡àª°', 'àª¬à«‹àª¤à«‡àª°', 'àª¤à«àª¯à«‹àª¤à«‡àª°', 'àªšà«‹àª¤à«‡àª°', 'àªªàª‚àªšà«‹àª¤à«‡àª°', 'àª›à«‹àª¤à«‡àª°', 'àª¸àª¿àª¤à«àª¯à«‹àª¤à«‡àª°', 'àª‡àª¤à«àª¯à«‹àª¤à«‡àª°', 'àª“àª—àª£àªàª¸à«€', 'àªàª¸à«€',
+        'àªàª•à«àª¯àª¾àª¸à«€', 'àª¬à«àª¯àª¾àª¸à«€', 'àª¤à«àª¯àª¾àª¸à«€', 'àªšà«‹àª°à«àª¯àª¾àª¸à«€', 'àªªàª‚àªšàª¾àª¸à«€', 'àª›à«àª¯àª¾àª¸à«€', 'àª¸àª¿àª¤à«àª¯àª¾àª¸à«€', 'àª…àª à«àª¯àª¾àª¸à«€', 'àª¨à«‡àªµà«àª¯àª¾àª¸à«€', 'àª¨à«‡àªµà«',
+        'àªàª•àª¾àª£à«', 'àª¬àª¾àª£à«', 'àª¤à«àª°àª¾àª£à«', 'àªšà«‹àª°àª¾àª£à«', 'àªªàª‚àªšàª¾àª£à«', 'àª›àª¨à«àª¨à«', 'àª¸àª¤à«àª¤àª¾àª£à«', 'àª…àª à«àª àª¾àª£à«', 'àª¨àªµàª¾àª£à«'
     ];
 
     function convertLessThanThousand(n) {
         if (n === 0) return "";
         let str = "";
         if (n >= 100) {
-            str += gujaratiNumbers[Math.floor(n / 100)] + " સો ";
+            str += gujaratiNumbers[Math.floor(n / 100)] + " àª¸à«‹ ";
             n %= 100;
         }
         if (n > 0) {
@@ -4744,19 +4748,19 @@ function numberToGujaratiWords(amount) {
     num %= 1000;
 
     if (crore > 0) {
-        words += convertLessThanThousand(crore) + " કરોડ ";
+        words += convertLessThanThousand(crore) + " àª•àª°à«‹àª¡ ";
     }
     if (lakh > 0) {
-        words += convertLessThanThousand(lakh) + " લાખ ";
+        words += convertLessThanThousand(lakh) + " àª²àª¾àª– ";
     }
     if (thousand > 0) {
-        words += convertLessThanThousand(thousand) + " હજાર ";
+        words += convertLessThanThousand(thousand) + " àª¹àªœàª¾àª° ";
     }
     if (num > 0) {
         words += convertLessThanThousand(num);
     }
 
-    return words.trim() + " પુરા";
+    return words.trim() + " àªªà«àª°àª¾";
 }
 
 // ==================== IMAGE CROPPER & COMPRESSION UTILITY ====================
@@ -5371,11 +5375,11 @@ function initBackupRestoreView() {
     if (btnImport) {
         btnImport.addEventListener("click", () => {
             if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
-                alert("મહેરબાની કરીને રીસ્ટોર કરવા માટે બેકઅપ એક્સેલ ફાઈલ (.xlsx) પસંદ કરો.");
+                alert("àª®àª¹à«‡àª°àª¬àª¾àª¨à«€ àª•àª°à«€àª¨à«‡ àª°à«€àª¸à«àªŸà«‹àª° àª•àª°àªµàª¾ àª®àª¾àªŸà«‡ àª¬à«‡àª•àª…àªª àªàª•à«àª¸à«‡àª² àª«àª¾àªˆàª² (.xlsx) àªªàª¸àª‚àª¦ àª•àª°à«‹.");
                 return;
             }
             const file = fileInput.files[0];
-            const confirmRestore = confirm("ચેતવણી: શું તમે ખરેખર આ બેકઅપ ફાઈલમાંથી રીસ્ટોર કરવા માંગો છો?\n\nઆનાથી ચાલુ સીસ્ટમનો બધો ડેટા નાશ પામશે અને ફાઈલમાંનો નવો ડેટા સેટ થઈ જશે.");
+            const confirmRestore = confirm("àªšà«‡àª¤àªµàª£à«€: àª¶à«àª‚ àª¤àª®à«‡ àª–àª°à«‡àª–àª° àª† àª¬à«‡àª•àª…àªª àª«àª¾àªˆàª²àª®àª¾àª‚àª¥à«€ àª°à«€àª¸à«àªŸà«‹àª° àª•àª°àªµàª¾ àª®àª¾àª‚àª—à«‹ àª›à«‹?\n\nàª†àª¨àª¾àª¥à«€ àªšàª¾àª²à« àª¸à«€àª¸à«àªŸàª®àª¨à«‹ àª¬àª§à«‹ àª¡à«‡àªŸàª¾ àª¨àª¾àª¶ àªªàª¾àª®àª¶à«‡ àª…àª¨à«‡ àª«àª¾àªˆàª²àª®àª¾àª‚àª¨à«‹ àª¨àªµà«‹ àª¡à«‡àªŸàª¾ àª¸à«‡àªŸ àª¥àªˆ àªœàª¶à«‡.");
             if (confirmRestore) {
                 importFullBackupFromExcel(file);
             }
@@ -5557,10 +5561,10 @@ function exportFullBackupToExcel() {
         const filename = `JCCB_GoldLoan_Backup_${timestamp}.xlsx`;
 
         XLSX.writeFile(wb, filename);
-        alert("બેકઅપ એક્સેલ ફાઈલ સફળતાપૂર્વક ડાઉનલોડ થઈ ગઈ છે!");
+        alert("àª¬à«‡àª•àª…àªª àªàª•à«àª¸à«‡àª² àª«àª¾àªˆàª² àª¸àª«àª³àª¤àª¾àªªà«‚àª°à«àªµàª• àª¡àª¾àª‰àª¨àª²à«‹àª¡ àª¥àªˆ àª—àªˆ àª›à«‡!");
     } catch (e) {
         console.error("Backup export failed", e);
-        alert("બેકઅપ ડાઉનલોડ કરવામાં ખામી આવી: " + e.message);
+        alert("àª¬à«‡àª•àª…àªª àª¡àª¾àª‰àª¨àª²à«‹àª¡ àª•àª°àªµàª¾àª®àª¾àª‚ àª–àª¾àª®à«€ àª†àªµà«€: " + e.message);
     } finally {
         hideSync();
     }
@@ -5619,7 +5623,7 @@ function importFullBackupFromExcel(file) {
             const workbook = XLSX.read(data, { type: 'array' });
 
             if (!workbook.Sheets["Branches"] || !workbook.Sheets["Loans"] || !workbook.Sheets["Products"]) {
-                throw new Error("પસંદ કરેલ ફાઇલ JCCB ગોલ્ડ લોન બેકઅપ ફાઇલ નથી અથવા તેમાં જરૂરી સીટો ગેરહાજર છે.");
+                throw new Error("àªªàª¸àª‚àª¦ àª•àª°à«‡àª² àª«àª¾àª‡àª² JCCB àª—à«‹àª²à«àª¡ àª²à«‹àª¨ àª¬à«‡àª•àª…àªª àª«àª¾àª‡àª² àª¨àª¥à«€ àª…àª¥àªµàª¾ àª¤à«‡àª®àª¾àª‚ àªœàª°à«‚àª°à«€ àª¸à«€àªŸà«‹ àª—à«‡àª°àª¹àª¾àªœàª° àª›à«‡.");
             }
 
             function getSheetJSON(sheetName) {
@@ -5801,11 +5805,11 @@ function importFullBackupFromExcel(file) {
             // Sync with spreadsheet database (throwOnError = true to catch failures)
             await saveState(false, true);
 
-            alert("ડેટાબેઝ સફળતાપૂર્વક રીસ્ટોર થઈ ગયો છે! પોર્ટલ હવે રીલોડ થશે.");
+            alert("àª¡à«‡àªŸàª¾àª¬à«‡àª àª¸àª«àª³àª¤àª¾àªªà«‚àª°à«àªµàª• àª°à«€àª¸à«àªŸà«‹àª° àª¥àªˆ àª—àª¯à«‹ àª›à«‡! àªªà«‹àª°à«àªŸàª² àª¹àªµà«‡ àª°à«€àª²à«‹àª¡ àª¥àª¶à«‡.");
             location.reload();
         } catch (e) {
             console.error("Restore failed", e);
-            alert("રીસ્ટોર કરવામાં ખામી આવી: " + e.message);
+            alert("àª°à«€àª¸à«àªŸà«‹àª° àª•àª°àªµàª¾àª®àª¾àª‚ àª–àª¾àª®à«€ àª†àªµà«€: " + e.message);
         } finally {
             hideSync();
         }
@@ -5825,7 +5829,7 @@ function initDeleteAllLoansHandler() {
                 alert("Permission Denied: Only Head Office can delete all loan records.");
                 return;
             }
-            const confirm1 = confirm("Warning: Are you sure you want to permanently delete all loan records across all branches?\n\nઆ ઓપરેશનથી તમામ બ્રાંચનો બધો લોન ડેટા કાયમ માટે નાશ પામશે!");
+            const confirm1 = confirm("Warning: Are you sure you want to permanently delete all loan records across all branches?\n\nàª† àª“àªªàª°à«‡àª¶àª¨àª¥à«€ àª¤àª®àª¾àª® àª¬à«àª°àª¾àª‚àªšàª¨à«‹ àª¬àª§à«‹ àª²à«‹àª¨ àª¡à«‡àªŸàª¾ àª•àª¾àª¯àª® àª®àª¾àªŸà«‡ àª¨àª¾àª¶ àªªàª¾àª®àª¶à«‡!");
             if (!confirm1) return;
             const confirm2 = confirm("Final Confirmation: This action is irreversible! Are you absolutely sure you want to delete all loan data?");
             if (!confirm2) return;
@@ -5835,7 +5839,7 @@ function initDeleteAllLoansHandler() {
             updateDashboardStats();
             
             saveState(true); // Sync in background
-            alert("તમામ લોન રેકોર્ડ સફળતાપૂર્વક ડીલીટ કરવામાં આવ્યા છે.");
+            alert("àª¤àª®àª¾àª® àª²à«‹àª¨ àª°à«‡àª•à«‹àª°à«àª¡ àª¸àª«àª³àª¤àª¾àªªà«‚àª°à«àªµàª• àª¡à«€àª²à«€àªŸ àª•àª°àªµàª¾àª®àª¾àª‚ àª†àªµà«àª¯àª¾ àª›à«‡.");
         });
     }
 }
