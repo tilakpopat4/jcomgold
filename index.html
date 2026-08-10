@@ -487,6 +487,10 @@
                                     <label for="gold-weight-net">Gold Ornaments Weight (Net Grams)</label>
                                     <input type="number" id="gold-weight-net" placeholder="e.g. 6.545" step="0.001" min="0.001" required>
                                 </div>
+                                <div class="form-group">
+                                    <label for="gold-weight-fine">Gold Ornaments (Fine Gold Grams)</label>
+                                    <input type="number" id="gold-weight-fine" placeholder="e.g. 5.500" step="0.001" min="0.001" required>
+                                </div>
                             </div>
 
                             <!-- Dynamic Installment Fields (Only visible when loan type is 3527) -->
@@ -948,7 +952,7 @@
                 <section id="settings-view" class="tab-content hidden">
                     <div class="view-header">
                         <h2><i class="fa-solid fa-sliders"></i> Account & Serial Seeds Settings</h2>
-                        <p>Configure starting sequences for gold packet counts and account ledger codes</p>
+                        <p>Configure and view the last used sequences for gold packet counts and account ledger codes</p>
                     </div>
 
                     <!-- Branch Selector for Settings -->
@@ -989,8 +993,8 @@
                     <div class="settings-grid">
                         <!-- Initial Account Numbers -->
                         <div class="card">
-                            <h3><i class="fa-solid fa-hashtag"></i> Starting Account Numbers</h3>
-                            <p class="helper-text-block">Set starting sequence integers for new accounts. Serials increment automatically on date change once set.</p>
+                            <h3><i class="fa-solid fa-hashtag"></i> Last Used Account Numbers</h3>
+                            <p class="helper-text-block">Set the last used account numbers. The system will automatically use the next serial number for new loans and update this setting.</p>
                             <form id="settings-accounts-form" class="margin-top">
                                 <!-- Generated Dynamically based on current products -->
                                 <div id="account-seeds-container"></div>
@@ -1005,7 +1009,7 @@
                             <h3><i class="fa-solid fa-box-archive"></i> Packet Numbers & Reset Systems</h3>
                             <form id="settings-general-form" class="margin-top">
                                 <div class="form-group">
-                                    <label for="seed-last-packet-no">Starting Packet Number Seed</label>
+                                    <label for="seed-last-packet-no">Last Used Packet Number</label>
                                     <input type="number" id="seed-last-packet-no" placeholder="e.g. 100">
                                 </div>
                                 <button type="submit" class="btn btn-primary margin-top">

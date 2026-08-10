@@ -1260,7 +1260,7 @@ function generateNextAccountNumber(schemeCode) {
         seed = DEFAULT_ACCOUNT_SEEDS[schemeCode] || 1001;
     }
     
-    let maxSerial = seed - 1;
+    let maxSerial = seed;
 
     state.loans.forEach(loan => {
         if (loan.branchCode === branchCode && loan.productCode === schemeCode) {
@@ -1339,6 +1339,7 @@ function initFormSubmit() {
                     accountNo: document.getElementById("loan-ac-no").value,
                     interestRate: document.getElementById("interest-rate-display").value,
                     goldWeightGross: parseFloat(document.getElementById("gold-weight-gross") ? document.getElementById("gold-weight-gross").value : 0) || weight,
+                    goldWeightFine: parseFloat(document.getElementById("gold-weight-fine") ? document.getElementById("gold-weight-fine").value : 0) || 0,
                     goldWeight: weight,
                     ornamentsDesc: document.getElementById("ornaments-desc").value,
                     tenureMonths: document.getElementById("loan-category-display").value.includes("3527") 
@@ -1415,6 +1416,7 @@ function initFormSubmit() {
                 accountNo: document.getElementById("loan-ac-no").value,
                 interestRate: document.getElementById("interest-rate-display").value,
                 goldWeightGross: parseFloat(document.getElementById("gold-weight-gross") ? document.getElementById("gold-weight-gross").value : 0) || weight,
+                    goldWeightFine: parseFloat(document.getElementById("gold-weight-fine") ? document.getElementById("gold-weight-fine").value : 0) || 0,
                     goldWeight: weight,
                 ornamentsDesc: document.getElementById("ornaments-desc").value,
                 tenureMonths: document.getElementById("loan-category-display").value.includes("3527") 
@@ -1460,6 +1462,31 @@ function initFormSubmit() {
             };
 
             state.loans.push(newLoan);
+            
+            // --- INJECT AUTO-UPDATE SEEDS ---
+            const currentBranch = state.currentSession ? state.currentSession.code : "99";
+            const prodCode = newLoan.productCode;
+            
+            let num = 0;
+            if (newLoan.accountNo.includes("-")) {
+                const parts = newLoan.accountNo.split("-");
+                num = parseInt(parts[parts.length - 1]);
+            } else {
+                num = parseInt(newLoan.accountNo);
+            }
+            if (!isNaN(num)) {
+                if (!state.accountSeeds) state.accountSeeds = {};
+                if (!state.accountSeeds[currentBranch]) state.accountSeeds[currentBranch] = {};
+                state.accountSeeds[currentBranch][prodCode] = num;
+            }
+            
+            const packetNum = parseInt(newLoan.packetNo);
+            if (!isNaN(packetNum)) {
+                if (!state.lastPacketSeed) state.lastPacketSeed = {};
+                state.lastPacketSeed[currentBranch] = packetNum;
+            }
+            // ---------------------------------
+            
             upsertCustomerFromForm();
             saveState();
 
@@ -1714,6 +1741,7 @@ function editLoanRecord(loanId) {
     document.getElementById("loan-amount").value = loan.loanAmount;
     if(document.getElementById("gold-weight-gross")) document.getElementById("gold-weight-gross").value = loan.goldWeightGross || loan.goldWeight;
     if(document.getElementById("gold-weight-net")) document.getElementById("gold-weight-net").value = loan.goldWeight;
+    if(document.getElementById("gold-weight-fine")) document.getElementById("gold-weight-fine").value = loan.goldWeightFine || '';
     document.getElementById("ornaments-desc").value = loan.ornamentsDesc;
     document.getElementById("charge-adjustment").value = loan.adjustment;
     document.getElementById("grievance-officer").value = loan.grievanceOfficer || "Amrutlal Valjibhai Chavda";
@@ -5443,6 +5471,7 @@ function exportFullBackupToExcel() {
             "Interest Rate": l.interestRate || "",
             "Gold Weight (Gross)": l.goldWeightGross || l.goldWeight || 0,
             "Gold Weight (Net)": l.goldWeight || 0,
+            "Gold Weight (Fine)": l.goldWeightFine || 0,
             "Ornaments Desc": l.ornamentsDesc || "",
             "Market Rate": l.marketRate || 0,
             "Market Value": l.marketValue || 0,
@@ -5736,7 +5765,9 @@ function importFullBackupFromExcel(file) {
                     accountNo: r["Account No"] || "",
                     interestRate: r["Interest Rate"] || "",
                     goldWeightGross: parseFloat(r["Gold Weight (Gross)"]) || parseFloat(r["Gold Weight"]) || 0,
+                    goldWeightFine: parseFloat(document.getElementById("gold-weight-fine") ? document.getElementById("gold-weight-fine").value : 0) || 0,
                     goldWeight: parseFloat(r["Gold Weight (Net)"]) || parseFloat(r["Gold Weight"]) || 0,
+                    goldWeightFine: parseFloat(r["Gold Weight (Fine)"]) || 0,
                     ornamentsDesc: r["Ornaments Desc"] || "",
                     marketRate: parseFloat(r["Market Rate"]) || 0,
                     marketValue: parseFloat(r["Market Value"]) || 0,
