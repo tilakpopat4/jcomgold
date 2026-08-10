@@ -789,7 +789,8 @@ function prepareEntryForm() {
 
     const inputsToWatch = [
         "loan-amount",
-        "gold-weight",
+        "gold-weight-gross",
+        "gold-weight-net",
         "is-member"
     ];
     inputsToWatch.forEach(id => {
@@ -1309,7 +1310,7 @@ function initFormSubmit() {
         }
 
         const amount = parseFloat(document.getElementById("loan-amount").value);
-        const weight = parseFloat(document.getElementById("gold-weight").value);
+        const weight = parseFloat(document.getElementById("gold-weight-net").value);
         const marketValue = Math.round((weight / 10) * rate);
         if (amount > marketValue * 0.75) {
             const confirmLTV = confirm("Warning: Loan amount exceeds 75% of gold value. Do you still want to proceed?");
