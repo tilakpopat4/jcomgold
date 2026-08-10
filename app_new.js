@@ -1338,7 +1338,7 @@ function initFormSubmit() {
                     productCode: document.getElementById("loan-category-display").value,
                     accountNo: document.getElementById("loan-ac-no").value,
                     interestRate: document.getElementById("interest-rate-display").value,
-                    goldWeightGross: parseFloat(goldWeightGrossInput ? goldWeightGrossInput.value : 0) || weight,
+                    goldWeightGross: parseFloat(document.getElementById("gold-weight-gross") ? document.getElementById("gold-weight-gross").value : 0) || weight,
                     goldWeight: weight,
                     ornamentsDesc: document.getElementById("ornaments-desc").value,
                     tenureMonths: document.getElementById("loan-category-display").value.includes("3527") 
@@ -1414,7 +1414,7 @@ function initFormSubmit() {
                 productCode: document.getElementById("loan-category-display").value,
                 accountNo: document.getElementById("loan-ac-no").value,
                 interestRate: document.getElementById("interest-rate-display").value,
-                goldWeightGross: parseFloat(goldWeightGrossInput ? goldWeightGrossInput.value : 0) || weight,
+                goldWeightGross: parseFloat(document.getElementById("gold-weight-gross") ? document.getElementById("gold-weight-gross").value : 0) || weight,
                     goldWeight: weight,
                 ornamentsDesc: document.getElementById("ornaments-desc").value,
                 tenureMonths: document.getElementById("loan-category-display").value.includes("3527") 
