@@ -508,9 +508,36 @@
                                 </div>
                             </div>
 
-                            <div class="form-group">
-                                <label for="ornaments-desc">Ornaments Description</label>
-                                <input type="text" id="ornaments-desc" placeholder="e.g. Gold Ring x2, Bangle x1" required>
+                            <div class="form-group ornaments-grid-container" style="overflow-x: auto;">
+                                <label>Ornaments Details (દાગીનાની વિગત) - Max 10 Rows</label>
+                                <table class="ornaments-grid" id="ornaments-grid" style="width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9em;">
+                                    <thead>
+                                        <tr style="background-color: var(--card-bg); border-bottom: 2px solid var(--border-color);">
+                                            <th style="padding: 8px;">Sr<br>(ક્રમ)</th>
+                                            <th style="padding: 8px;">Detail<br>(વિગત)</th>
+                                            <th style="padding: 8px;">Qty<br>(નંગ)</th>
+                                            <th style="padding: 8px;">Gross Wt<br>(ગ્રોસ વજન)</th>
+                                            <th style="padding: 8px;">Net Wt<br>(નેટ વજન)</th>
+                                            <th style="padding: 8px;">Carat<br>(કેરેટ)</th>
+                                            <th style="padding: 8px; background-color: rgba(255,152,0,0.1); color: #ff9800;">Fine Value ₹<br>(ફાઇન ગોલ્ડ)</th>
+                                            <th style="padding: 8px;">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="ornaments-tbody">
+                                        <!-- JS will inject rows -->
+                                    </tbody>
+                                    <tfoot>
+                                        <tr style="background-color: var(--bg-color); font-weight: bold;">
+                                            <td colspan="3" style="text-align: right; padding: 8px;">Totals:</td>
+                                            <td id="orn-total-gross" style="padding: 8px;">0.000</td>
+                                            <td id="orn-total-net" style="padding: 8px;">0.000</td>
+                                            <td style="padding: 8px;">-</td>
+                                            <td id="orn-total-fine" style="padding: 8px; background-color: rgba(255,152,0,0.2); color: #ff9800;">₹0</td>
+                                            <td></td>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                                <button type="button" id="add-ornament-btn" class="btn-secondary" style="margin-top: 10px;"><i class="fa-solid fa-plus"></i> Add Row</button>
                             </div>
 
                             <div class="form-group">

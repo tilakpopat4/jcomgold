@@ -1341,7 +1341,8 @@ function initFormSubmit() {
                     goldWeightGross: parseFloat(document.getElementById("gold-weight-gross") ? document.getElementById("gold-weight-gross").value : 0) || weight,
                     goldWeightFine: parseFloat(document.getElementById("gold-weight-fine") ? document.getElementById("gold-weight-fine").value : 0) || 0,
                     goldWeight: weight,
-                    ornamentsDesc: document.getElementById("ornaments-desc").value,
+                    ornamentsList: JSON.parse(JSON.stringify(ornamentsList)),
+                    ornamentsDesc: ornamentsList.map(o => o.qty + 'x ' + o.detail).join(', '),
                     tenureMonths: document.getElementById("loan-category-display").value.includes("3527") 
                         ? (parseInt(document.getElementById("loan-installments").value) || 36)
                         : 12,
@@ -1418,7 +1419,8 @@ function initFormSubmit() {
                 goldWeightGross: parseFloat(document.getElementById("gold-weight-gross") ? document.getElementById("gold-weight-gross").value : 0) || weight,
                     goldWeightFine: parseFloat(document.getElementById("gold-weight-fine") ? document.getElementById("gold-weight-fine").value : 0) || 0,
                     goldWeight: weight,
-                ornamentsDesc: document.getElementById("ornaments-desc").value,
+                ornamentsList: JSON.parse(JSON.stringify(ornamentsList)),
+                    ornamentsDesc: ornamentsList.map(o => o.qty + 'x ' + o.detail).join(', '),
                 tenureMonths: document.getElementById("loan-category-display").value.includes("3527") 
                     ? (parseInt(document.getElementById("loan-installments").value) || 36)
                     : 12,
@@ -1741,6 +1743,21 @@ function editLoanRecord(loanId) {
     document.getElementById("loan-amount").value = loan.loanAmount;
     if(document.getElementById("gold-weight-gross")) document.getElementById("gold-weight-gross").value = loan.goldWeightGross || loan.goldWeight;
     if(document.getElementById("gold-weight-net")) document.getElementById("gold-weight-net").value = loan.goldWeight;
+    
+    // Load ornaments list
+    if (loan.ornamentsList && Array.isArray(loan.ornamentsList)) {
+        ornamentsList = JSON.parse(JSON.stringify(loan.ornamentsList));
+    } else {
+        // Fallback for old loans
+        ornamentsList = [{
+            detail: loan.ornamentsDesc || 'Gold Ornaments',
+            qty: 1,
+            gross: loan.goldWeightGross || loan.goldWeight,
+            net: loan.goldWeight,
+            carat: 22
+        }];
+    }
+    renderOrnamentsGrid();
     if(document.getElementById("gold-weight-fine")) document.getElementById("gold-weight-fine").value = loan.goldWeightFine || '';
     document.getElementById("ornaments-desc").value = loan.ornamentsDesc;
     document.getElementById("charge-adjustment").value = loan.adjustment;
