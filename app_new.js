@@ -1004,7 +1004,9 @@ function autoCalculatePacketNumber(dateStr) {
 
 function calculateCharges() {
     const loanAmountInput = document.getElementById("loan-amount");
-    const goldWeightInput = document.getElementById("gold-weight");
+    const goldWeightGrossInput = document.getElementById("gold-weight-gross");
+    const goldWeightNetInput = document.getElementById("gold-weight-net");
+    const goldWeightInput = goldWeightNetInput;
     const isNewMemberCheck = document.getElementById("is-new-member-checkbox");
     const loanDateVal = document.getElementById("loan-date").value;
     const isMember = document.getElementById("is-member").value;
@@ -1335,6 +1337,7 @@ function initFormSubmit() {
                     productCode: document.getElementById("loan-category-display").value,
                     accountNo: document.getElementById("loan-ac-no").value,
                     interestRate: document.getElementById("interest-rate-display").value,
+                    goldWeightGross: parseFloat(goldWeightGrossInput ? goldWeightGrossInput.value : 0) || weight,
                     goldWeight: weight,
                     ornamentsDesc: document.getElementById("ornaments-desc").value,
                     tenureMonths: document.getElementById("loan-category-display").value.includes("3527") 
@@ -1410,7 +1413,8 @@ function initFormSubmit() {
                 productCode: document.getElementById("loan-category-display").value,
                 accountNo: document.getElementById("loan-ac-no").value,
                 interestRate: document.getElementById("interest-rate-display").value,
-                goldWeight: weight,
+                goldWeightGross: parseFloat(goldWeightGrossInput ? goldWeightGrossInput.value : 0) || weight,
+                    goldWeight: weight,
                 ornamentsDesc: document.getElementById("ornaments-desc").value,
                 tenureMonths: document.getElementById("loan-category-display").value.includes("3527") 
                     ? (parseInt(document.getElementById("loan-installments").value) || 36)
@@ -1547,7 +1551,7 @@ function renderLoanRegister() {
                 <td>${loan.borrowerName}</td>
                 <td><small class="gold-badge">${loan.productCode}</small></td>
                 <td>₹${parseFloat(loan.loanAmount).toLocaleString("en-IN")}</td>
-                <td>${parseFloat(loan.goldWeight).toFixed(3)}g</td>
+                <td>${parseFloat(loan.goldWeightGross || loan.goldWeight).toFixed(3)}g / ${parseFloat(loan.goldWeight).toFixed(3)}g</td>
                 <td>₹${parseFloat(loan.totalCharges).toLocaleString("en-IN")}</td>
                 <td class="bold-text green-color">₹${parseFloat(loan.netDisbursal).toLocaleString("en-IN")}</td>
                 <td>
@@ -1707,7 +1711,8 @@ function editLoanRecord(loanId) {
     }
 
     document.getElementById("loan-amount").value = loan.loanAmount;
-    document.getElementById("gold-weight").value = loan.goldWeight;
+    if(document.getElementById("gold-weight-gross")) document.getElementById("gold-weight-gross").value = loan.goldWeightGross || loan.goldWeight;
+    if(document.getElementById("gold-weight-net")) document.getElementById("gold-weight-net").value = loan.goldWeight;
     document.getElementById("ornaments-desc").value = loan.ornamentsDesc;
     document.getElementById("charge-adjustment").value = loan.adjustment;
     document.getElementById("grievance-officer").value = loan.grievanceOfficer || "Amrutlal Valjibhai Chavda";
@@ -2968,7 +2973,7 @@ function printVoucher(loanId, format) {
                     <div class="print-details-split">
                         <div class="print-panel-card">
                             <h4>Gold Evaluation & Valuation</h4>
-                            <div class="p-row"><span>Ornaments Weight:</span><span class="p-val">${parseFloat(loan.goldWeight).toFixed(3)} Grams</span></div>
+                            <div class="p-row"><span>Ornaments Weight (G/N):</span><span class="p-val">${parseFloat(loan.goldWeightGross || loan.goldWeight).toFixed(3)} / ${parseFloat(loan.goldWeight).toFixed(3)} Grams</span></div>
                             <div class="p-row"><span>Gold Market Rate (/10g):</span><span class="p-val">₹${parseFloat(loan.marketRate).toLocaleString("en-IN")}</span></div>
                             <div class="p-row"><span>Ornaments Market Value:</span><span class="p-val">₹${parseFloat(loan.marketValue).toLocaleString("en-IN")}</span></div>
                             <div class="p-row"><span>Max Eligible Loan (75%):</span><span class="p-val">₹${parseFloat(loan.eligibleAmount).toLocaleString("en-IN")}</span></div>
@@ -3873,7 +3878,7 @@ function printVoucher(loanId, format) {
                             </tr>
                             <tr style="border-bottom:1px solid #000000;">
                                 <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Gross Weight / Net Weight of Gold</td>
-                                <td style="padding:3px 6px;">${parseFloat(loan.goldWeight).toFixed(3)} Grams / ${parseFloat(loan.goldWeight).toFixed(3)} Grams</td>
+                                <td style="padding:3px 6px;">${parseFloat(loan.goldWeightGross || loan.goldWeight).toFixed(3)} Grams (Gross) / ${parseFloat(loan.goldWeight).toFixed(3)} Grams (Net)</td>
                             </tr>
                             <tr style="border-bottom:1px solid #000000;">
                                 <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Purity of Gold</td>
@@ -4014,7 +4019,7 @@ function printVoucher(loanId, format) {
                             </tr>
                             <tr style="border-bottom:1px solid #000000;">
                                 <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Gross Weight / Net Weight of Gold</td>
-                                <td style="padding:3px 6px;">${parseFloat(loan.goldWeight).toFixed(3)} Grams / ${parseFloat(loan.goldWeight).toFixed(3)} Grams</td>
+                                <td style="padding:3px 6px;">${parseFloat(loan.goldWeightGross || loan.goldWeight).toFixed(3)} Grams (Gross) / ${parseFloat(loan.goldWeight).toFixed(3)} Grams (Net)</td>
                             </tr>
                             <tr style="border-bottom:1px solid #000000;">
                                 <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Purity of Gold</td>
@@ -4171,7 +4176,7 @@ function printVoucher(loanId, format) {
                             </tr>
                             <tr style="border-bottom:1px solid #000000;">
                                 <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Gross Weight / Net Weight of Gold</td>
-                                <td style="padding:3px 6px;">${parseFloat(loan.goldWeight).toFixed(3)} Grams / ${parseFloat(loan.goldWeight).toFixed(3)} Grams</td>
+                                <td style="padding:3px 6px;">${parseFloat(loan.goldWeightGross || loan.goldWeight).toFixed(3)} Grams (Gross) / ${parseFloat(loan.goldWeight).toFixed(3)} Grams (Net)</td>
                             </tr>
                             <tr style="border-bottom:1px solid #000000;">
                                 <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Purity of Gold</td>
@@ -4375,7 +4380,7 @@ function printVoucher(loanId, format) {
                         </tr>
                         <tr style="border-bottom:1px solid #000000;">
                             <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Gross Weight / Net Weight of Gold</td>
-                            <td style="padding:3px 6px;">${parseFloat(loan.goldWeight).toFixed(3)} Grams / ${parseFloat(loan.goldWeight).toFixed(3)} Grams</td>
+                            <td style="padding:3px 6px;">${parseFloat(loan.goldWeightGross || loan.goldWeight).toFixed(3)} Grams (Gross) / ${parseFloat(loan.goldWeight).toFixed(3)} Grams (Net)</td>
                         </tr>
                         <tr style="border-bottom:1px solid #000000;">
                             <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Purity of Gold</td>
@@ -4511,7 +4516,7 @@ function printVoucher(loanId, format) {
                         </tr>
                         <tr style="border-bottom:1px solid #000000;">
                             <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Gross Weight / Net Weight of Gold</td>
-                            <td style="padding:3px 6px;">${parseFloat(loan.goldWeight).toFixed(3)} Grams / ${parseFloat(loan.goldWeight).toFixed(3)} Grams</td>
+                            <td style="padding:3px 6px;">${parseFloat(loan.goldWeightGross || loan.goldWeight).toFixed(3)} Grams (Gross) / ${parseFloat(loan.goldWeight).toFixed(3)} Grams (Net)</td>
                         </tr>
                         <tr style="border-bottom:1px solid #000000;">
                             <td style="border-right:1.5px solid #000000; padding:3px 6px; font-weight:700;">Purity of Gold</td>
@@ -4659,7 +4664,7 @@ function printVoucher(loanId, format) {
                         </tr>
                         <tr style="border-bottom:1px solid #000000;">
                             <td style="border-right:1.5px solid #000000; padding:4px 8px; font-weight:700;">Gross Weight / Net Weight of Gold</td>
-                            <td style="padding:4px 8px;">${parseFloat(loan.goldWeight).toFixed(3)} Grams / ${parseFloat(loan.goldWeight).toFixed(3)} Grams</td>
+                            <td style="padding:4px 8px;">${parseFloat(loan.goldWeightGross || loan.goldWeight).toFixed(3)} Grams (Gross) / ${parseFloat(loan.goldWeight).toFixed(3)} Grams (Net)</td>
                         </tr>
                         <tr style="border-bottom:1px solid #000000;">
                             <td style="border-right:1.5px solid #000000; padding:4px 8px; font-weight:700;">Purity of Gold</td>
@@ -5435,7 +5440,8 @@ function exportFullBackupToExcel() {
             "Product Code": l.productCode || "",
             "Account No": l.accountNo || "",
             "Interest Rate": l.interestRate || "",
-            "Gold Weight": l.goldWeight || 0,
+            "Gold Weight (Gross)": l.goldWeightGross || l.goldWeight || 0,
+            "Gold Weight (Net)": l.goldWeight || 0,
             "Ornaments Desc": l.ornamentsDesc || "",
             "Market Rate": l.marketRate || 0,
             "Market Value": l.marketValue || 0,
@@ -5728,7 +5734,8 @@ function importFullBackupFromExcel(file) {
                     productCode: r["Product Code"] || "",
                     accountNo: r["Account No"] || "",
                     interestRate: r["Interest Rate"] || "",
-                    goldWeight: parseFloat(r["Gold Weight"]) || 0,
+                    goldWeightGross: parseFloat(r["Gold Weight (Gross)"]) || parseFloat(r["Gold Weight"]) || 0,
+                    goldWeight: parseFloat(r["Gold Weight (Net)"]) || parseFloat(r["Gold Weight"]) || 0,
                     ornamentsDesc: r["Ornaments Desc"] || "",
                     marketRate: parseFloat(r["Market Rate"]) || 0,
                     marketValue: parseFloat(r["Market Value"]) || 0,
@@ -5867,4 +5874,62 @@ document.addEventListener("DOMContentLoaded", async () => {
     } else {
         exitApp();
     }
+});
+
+
+// --- INJECTED GOLD RATE & HISTORY LOGIC ---
+document.addEventListener("DOMContentLoaded", () => {
+    setTimeout(() => {
+        const saveRateBtn = document.getElementById("save-gold-rate-btn");
+        if (saveRateBtn) {
+            saveRateBtn.addEventListener("click", async () => {
+                const rateInput = document.getElementById("dashboard-gold-rate");
+                const rate = parseFloat(rateInput.value);
+                if (!rate || rate < 1000) {
+                    alert("Please enter a valid gold rate (e.g. 65000).");
+                    return;
+                }
+                const todayStr = getTodayDateStr();
+                state.goldRates[todayStr] = rate;
+                try {
+                    await saveState(false, true);
+                    alert("Gold rate for today saved and synced to all branches!");
+                    updateDashboardStats();
+                } catch(e) {
+                    alert("Error saving gold rate. Try again.");
+                }
+            });
+        }
+
+        const historyBtn = document.getElementById("view-gold-rate-history-btn");
+        const historyModal = document.getElementById("gold-rate-history-modal");
+        const historyCloseBtn = document.getElementById("close-gold-rate-history-modal-btn");
+        const historySearchDate = document.getElementById("history-search-date");
+        const historyRateResult = document.getElementById("history-rate-result");
+
+        if (historyBtn && historyModal) {
+            historyBtn.addEventListener("click", () => {
+                historyModal.classList.remove("hidden");
+                historySearchDate.value = "";
+                historyRateResult.innerHTML = "Please select a date to view the gold rate.";
+            });
+
+            historyCloseBtn.addEventListener("click", () => {
+                historyModal.classList.add("hidden");
+            });
+
+            historySearchDate.addEventListener("change", () => {
+                const dateParts = historySearchDate.value.split("-");
+                if(dateParts.length === 3) {
+                    const formattedDate = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
+                    const rate = state.goldRates[formattedDate];
+                    if (rate) {
+                        historyRateResult.innerHTML = `Gold Rate on ${formattedDate}: <strong>₹${rate.toLocaleString("en-IN")}</strong> per 10g`;
+                    } else {
+                        historyRateResult.innerHTML = `<span style='color:red'>No gold rate recorded for ${formattedDate}</span>`;
+                    }
+                }
+            });
+        }
+    }, 1000);
 });

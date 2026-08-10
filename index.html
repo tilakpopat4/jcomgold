@@ -205,8 +205,11 @@
                                     <button id="save-gold-rate-btn" class="btn btn-gold">
                                         <i class="fa-solid fa-floppy-disk"></i> Save
                                     </button>
+                                    <button id="view-gold-rate-history-btn" class="btn btn-secondary" style="margin-left: 5px;">
+                                        <i class="fa-solid fa-clock-rotate-left"></i> History
+                                    </button>
                                 </div>
-                                <span class="rate-note">* Set once per calendar date (Locked for the day once used)</span>
+                                <span class="rate-note">* Automatically synced from Head Office</span>
                             </div>
                         </div>
                     </div>
@@ -477,8 +480,12 @@
                                     <input type="text" id="interest-rate-display" readonly placeholder="Auto-selected">
                                 </div>
                                 <div class="form-group">
-                                    <label for="gold-weight">Gold Ornaments Weight (Grams)</label>
-                                    <input type="number" id="gold-weight" placeholder="e.g. 6.545" step="0.001" min="0.001" required>
+                                    <label for="gold-weight-gross">Gold Ornaments Weight (Gross Grams)</label>
+                                    <input type="number" id="gold-weight-gross" placeholder="e.g. 6.545" step="0.001" min="0.001" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="gold-weight-net">Gold Ornaments Weight (Net Grams)</label>
+                                    <input type="number" id="gold-weight-net" placeholder="e.g. 6.545" step="0.001" min="0.001" required>
                                 </div>
                             </div>
 
@@ -1261,6 +1268,25 @@
                     <button id="btn-reminder-close" class="btn btn-secondary">
                         Close
                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== GOLD RATE HISTORY MODAL ==================== -->
+    <div id="gold-rate-history-modal" class="modal hidden">
+        <div class="modal-content glassmorphism" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-clock-rotate-left"></i> Gold Rate History</h3>
+                <button id="close-gold-rate-history-modal-btn" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="history-search-date">Select Date</label>
+                    <input type="date" id="history-search-date" class="highlight-input">
+                </div>
+                <div id="history-rate-result" style="margin-top: 15px; font-size: 16px; font-weight: 600; text-align: center; color: var(--gold-dark); padding: 15px; border: 1px dashed var(--gold-dark); border-radius: 8px;">
+                    Please select a date to view the gold rate.
                 </div>
             </div>
         </div>
