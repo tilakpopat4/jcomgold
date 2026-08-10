@@ -700,6 +700,8 @@ function renderDashboardRecentTable(loansList) {
 
     recent.forEach(loan => {
         const tr = document.createElement("tr");
+        tr.style.borderBottom = "1px solid #eee";
+        tr.style.backgroundColor = index % 2 === 0 ? "#ffffff" : "#fbfbfb";
         tr.innerHTML = `
             <td><strong>${loan.accountNo}</strong></td>
             <td>${loan.borrowerName}</td>
@@ -6011,12 +6013,12 @@ function renderOrnamentsGrid() {
         const tr = document.createElement("tr");
         tr.innerHTML = `
             <td style="text-align:center;">${index + 1}</td>
-            <td><input type="text" class="orn-detail" value="${orn.detail || ''}" style="width:100%; padding:4px;" required></td>
-            <td><input type="number" class="orn-qty" value="${orn.qty || ''}" style="width:50px; padding:4px;" required></td>
-            <td><input type="number" class="orn-gross" step="0.001" value="${orn.gross || ''}" style="width:70px; padding:4px;" required></td>
-            <td><input type="number" class="orn-net" step="0.001" value="${orn.net || ''}" style="width:70px; padding:4px;" required></td>
+            <td><input type="text" class="orn-detail" value="${orn.detail || ''}" style="width:100%; padding:6px; border:1px solid #ccc; border-radius:4px; box-sizing:border-box;" required></td>
+            <td><input type="number" class="orn-qty" value="${orn.qty || ''}" style="width:60px; padding:6px; border:1px solid #ccc; border-radius:4px; box-sizing:border-box;" required></td>
+            <td><input type="number" class="orn-gross" step="0.001" value="${orn.gross || ''}" style="width:80px; padding:6px; border:1px solid #ccc; border-radius:4px; box-sizing:border-box;" required></td>
+            <td><input type="number" class="orn-net" step="0.001" value="${orn.net || ''}" style="width:80px; padding:6px; border:1px solid #ccc; border-radius:4px; box-sizing:border-box;" required></td>
             <td>
-                <select class="orn-carat" style="width:60px; padding:4px;">
+                <select class="orn-carat" style="width:60px; padding:6px; border:1px solid #ccc; border-radius:4px; box-sizing:border-box;">
                     <option value="16" ${orn.carat == 16 ? 'selected' : ''}>16</option>
                     <option value="17" ${orn.carat == 17 ? 'selected' : ''}>17</option>
                     <option value="18" ${orn.carat == 18 ? 'selected' : ''}>18</option>
@@ -6026,7 +6028,7 @@ function renderOrnamentsGrid() {
                     <option value="22" ${orn.carat == 22 || !orn.carat ? 'selected' : ''}>22</option>
                 </select>
             </td>
-            <td style="text-align:right; font-weight:bold; color:#ff9800;">₹${Math.round(fineVal).toLocaleString("en-IN")}</td>
+            <td class="orn-fine-val-cell" style="text-align:right; font-weight:bold; color:#ff9800; padding-right:10px;">₹${Math.round(fineVal).toLocaleString("en-IN")}</td>
             <td style="text-align:center;">
                 <button type="button" class="btn-icon btn-icon-red orn-delete" data-index="${index}"><i class="fa-solid fa-trash"></i></button>
             </td>
@@ -6045,12 +6047,7 @@ function renderOrnamentsGrid() {
         tbody.appendChild(tr);
     });
     
-    const tgEl = document.getElementById("orn-total-gross");
-    if(tgEl) tgEl.textContent = totalGross.toFixed(3);
-    const tnEl = document.getElementById("orn-total-net");
-    if(tnEl) tnEl.textContent = totalNet.toFixed(3);
-    const tfEl = document.getElementById("orn-total-fine");
-    if(tfEl) tfEl.textContent = "₹" + Math.round(totalFineValue).toLocaleString("en-IN");
+    updateGridCalculations();
 }
 
 function updateOrnamentsListFromDOM() {
@@ -6067,8 +6064,55 @@ function updateOrnamentsListFromDOM() {
             carat: parseInt(tr.querySelector('.orn-carat').value) || 22
         });
     });
-    renderOrnamentsGrid();
+    // DO NOT renderOrnamentsGrid() here to prevent losing input focus!
+    updateGridCalculations();
     updateMainWeights();
+}
+
+function updateGridCalculations() {
+    const tbody = document.getElementById("ornaments-tbody");
+    if(!tbody) return;
+    const rows = tbody.querySelectorAll('tr');
+    
+    let totalGross = 0;
+    let totalNet = 0;
+    let totalFineValue = 0;
+    let validFineCount = 0;
+    
+    const goldRate = state.goldRates ? (state.goldRates[document.getElementById("loan-date").value] || 0) : 0;
+    
+    rows.forEach((tr, index) => {
+        const orn = ornamentsList[index];
+        if(!orn) return;
+        
+        let fineVal = 0;
+        if(orn.net && orn.carat && goldRate) {
+            fineVal = (orn.net * orn.carat / 22) * (goldRate / 10);
+            validFineCount++;
+        }
+        orn.fineValue = fineVal;
+        
+        totalGross += orn.gross || 0;
+        totalNet += orn.net || 0;
+        totalFineValue += fineVal;
+        
+        // Update the fine value cell directly
+        const fineCell = tr.querySelector('.orn-fine-val-cell');
+        if(fineCell) {
+            fineCell.textContent = "₹" + Math.round(fineVal).toLocaleString("en-IN");
+        }
+    });
+    
+    const tgEl = document.getElementById("orn-total-gross");
+    if(tgEl) tgEl.textContent = totalGross.toFixed(3);
+    const tnEl = document.getElementById("orn-total-net");
+    if(tnEl) tnEl.textContent = totalNet.toFixed(3);
+    const tfEl = document.getElementById("orn-total-fine");
+    if(tfEl) {
+        // User requested AVERAGE fine value for the Totals row
+        const avgFineValue = validFineCount > 0 ? (totalFineValue / validFineCount) : 0;
+        tfEl.innerHTML = "Avg: ₹" + Math.round(avgFineValue).toLocaleString("en-IN");
+    }
 }
 
 function updateMainWeights() {
