@@ -6001,10 +6001,15 @@ function renderOrnamentsGrid() {
     
     ornamentsList.forEach((orn, index) => {
         let fineVal = 0;
-        if(orn.net && orn.carat && goldRate) {
-            fineVal = (orn.net * orn.carat / 22) * (goldRate / 10);
+        let fineValWt = 0;
+        if(orn.net && orn.carat) {
+            fineValWt = (orn.net * orn.carat) / 22;
+            if(goldRate) {
+                fineVal = fineValWt * (goldRate / 10);
+            }
         }
         orn.fineValue = fineVal;
+        orn.fineValWt = fineValWt;
         
         totalGross += orn.gross || 0;
         totalNet += orn.net || 0;
@@ -6028,6 +6033,7 @@ function renderOrnamentsGrid() {
                     <option value="22" ${orn.carat == 22 || !orn.carat ? 'selected' : ''}>22</option>
                 </select>
             </td>
+            <td class="orn-fine-wt-cell" style="padding: 12px 6px; text-align:center;">${fineValWt.toFixed(3)}</td>
             <td class="orn-fine-val-cell" style="text-align:right; font-weight:bold; color:#ff9800; padding: 12px 10px 12px 6px; font-size:15px;">₹${Math.round(fineVal).toLocaleString("en-IN")}</td>
             <td style="text-align:center; padding: 12px 6px;">
                 <button type="button" class="btn-icon btn-icon-red orn-delete" data-index="${index}"><i class="fa-solid fa-trash"></i></button>
@@ -6077,7 +6083,7 @@ function updateGridCalculations() {
     let totalGross = 0;
     let totalNet = 0;
     let totalFineValue = 0;
-    let validFineCount = 0;
+    let totalFineWt = 0;
     
     const goldRate = state.goldRates ? (state.goldRates[document.getElementById("loan-date").value] || 0) : 0;
     
@@ -6086,17 +6092,26 @@ function updateGridCalculations() {
         if(!orn) return;
         
         let fineVal = 0;
-        if(orn.net && orn.carat && goldRate) {
-            fineVal = (orn.net * orn.carat / 22) * (goldRate / 10);
-            validFineCount++;
+        let fineValWt = 0;
+        if(orn.net && orn.carat) {
+            fineValWt = (orn.net * orn.carat) / 22;
+            if(goldRate) {
+                fineVal = fineValWt * (goldRate / 10);
+            }
         }
         orn.fineValue = fineVal;
+        orn.fineValWt = fineValWt;
         
         totalGross += orn.gross || 0;
         totalNet += orn.net || 0;
         totalFineValue += fineVal;
+        totalFineWt += fineValWt;
         
-        // Update the fine value cell directly
+        // Update the cells directly
+        const fineWtCell = tr.querySelector('.orn-fine-wt-cell');
+        if(fineWtCell) {
+            fineWtCell.textContent = fineValWt.toFixed(3);
+        }
         const fineCell = tr.querySelector('.orn-fine-val-cell');
         if(fineCell) {
             fineCell.textContent = "₹" + Math.round(fineVal).toLocaleString("en-IN");
@@ -6107,11 +6122,11 @@ function updateGridCalculations() {
     if(tgEl) tgEl.textContent = totalGross.toFixed(3);
     const tnEl = document.getElementById("orn-total-net");
     if(tnEl) tnEl.textContent = totalNet.toFixed(3);
+    const tfWtEl = document.getElementById("orn-total-fine-wt");
+    if(tfWtEl) tfWtEl.textContent = totalFineWt.toFixed(3);
     const tfEl = document.getElementById("orn-total-fine");
     if(tfEl) {
-        // User requested AVERAGE fine value for the Totals row
-        const avgFineValue = validFineCount > 0 ? (totalFineValue / validFineCount) : 0;
-        tfEl.innerHTML = "Avg: ₹" + Math.round(avgFineValue).toLocaleString("en-IN");
+        tfEl.innerHTML = "₹" + Math.round(totalFineValue).toLocaleString("en-IN");
     }
 }
 
