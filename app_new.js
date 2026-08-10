@@ -6161,6 +6161,11 @@ function updateMainWeights() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+    // Start clock immediately so Date & Time is maintained
+    if (typeof startClock === "function") {
+        startClock();
+    }
+    
     const addOrnBtn = document.getElementById("add-ornament-btn");
     if(addOrnBtn) {
         addOrnBtn.addEventListener('click', () => {
