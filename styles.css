@@ -2002,3 +2002,9 @@ input.admin-editable:focus, select.admin-editable:focus {
 #register-tbody tr:hover {
     background-color: #f1f5f9 !important;
 }
+
+/* ==================== ORNAMENTS GRID BORDERS ==================== */
+.ornaments-grid th, .ornaments-grid td {
+    border: 1px solid var(--border-color);
+    text-align: center;
+}
