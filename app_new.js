@@ -1092,7 +1092,16 @@ function calculateCharges() {
         }
     }
 
-    const marketValue = Math.round((weight / 10) * marketRate);
+    let marketValue = 0;
+    if (typeof ornamentsList !== 'undefined' && ornamentsList.length > 0) {
+        let totalFine = 0;
+        ornamentsList.forEach(orn => {
+            if (orn.fineValue) totalFine += orn.fineValue;
+        });
+        marketValue = Math.round(totalFine);
+    } else {
+        marketValue = Math.round((weight / 10) * marketRate);
+    }
     const eligibleAmount = Math.round(marketValue * 0.75);
     
     document.getElementById("val-market-val-display").textContent = `₹${marketValue.toLocaleString("en-IN")}`;
