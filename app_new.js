@@ -314,7 +314,7 @@ function getBranchLoanSerial(loanId, branchCode) {
 }
 
 function roundTo10(val) {
-    return Math.round(val / 10) * 10;
+    return Math.ceil(val / 10) * 10;
 }
 
 function roundUpTo5(val) {

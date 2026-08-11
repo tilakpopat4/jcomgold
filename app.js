@@ -1,4 +1,4 @@
-﻿// ==================== INITIAL SEED DATA ====================
+// ==================== INITIAL SEED DATA ====================
 const INITIAL_BRANCHES = [
     { code: "99", name: "HEAD OFFICE" },
     { code: "01", name: "AZADCHOWK BRANCH" },
@@ -158,7 +158,7 @@ function getTodayDateStr() {
 }
 
 function roundTo10(val) {
-    return Math.round(val / 10) * 10;
+    return Math.ceil(val / 10) * 10;
 }
 
 function roundUpTo5(val) {
