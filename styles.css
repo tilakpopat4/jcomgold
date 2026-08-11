@@ -395,8 +395,8 @@ input[readonly] {
 }
 
 .login-card select option {
-    background-color: #0f172a;
-    color: white;
+    background-color: #ffffff;
+    color: #000000;
     padding: 10px;
 }
 
