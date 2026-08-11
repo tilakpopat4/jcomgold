@@ -5874,7 +5874,16 @@ document.addEventListener("DOMContentLoaded", () => {
     initDeleteAllLoansHandler();
     initPendingReminder();
 
-    if (state.currentSession) {
+    // Check localStorage directly for session (don't wait for async Firebase load)
+    // This ensures the user stays logged in on page refresh
+    let bootSession = null;
+    try {
+        const raw = localStorage.getItem("jccb_current_session");
+        if (raw) bootSession = JSON.parse(raw);
+    } catch(e) {}
+
+    if (bootSession) {
+        state.currentSession = bootSession;
         enterApp();
     } else {
         exitApp();
