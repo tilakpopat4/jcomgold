@@ -109,7 +109,13 @@ async function loadState() {
         if (docSnap.exists()) {
             const data = docSnap.data();
             if (Object.keys(data).length > 0) {
-                stored = JSON.stringify(data);
+                // Handle compressed state (saved when data exceeded ~500KB)
+                if (data._compressed && data.d) {
+                    console.log("📦 Loading COMPRESSED state from Firebase");
+                    stored = LZString.decompress(data.d);
+                } else {
+                    stored = JSON.stringify(data);
+                }
             }
         }
 
@@ -292,13 +298,30 @@ async function saveState(isBackground = false, throwOnError = false) {
             try { localStorage.setItem("jccb_photos", JSON.stringify(photosStore)); } catch(le) { console.warn("localStorage full, photos may not persist", le); }
         }
 
+        // ---- DIAGNOSTIC: measure state size ----
+        const rawJson = JSON.stringify(cleanState);
+        const byteSize = new TextEncoder().encode(rawJson).length;
+        const kb = (byteSize / 1024).toFixed(1);
+        console.log(`💾 State size (after photo strip): ${kb} KB`);
+
+        // Firestore limit is 1MB (1,048,576 bytes). Compress anything > 500KB to be safe.
+        let docPayload;
+        if (byteSize > 512000) {
+            const compressed = LZString.compress(rawJson);
+            const compKb = (compressed.length / 1024).toFixed(1);
+            console.log(`🗜️ Compressed to ${compKb} KB (was ${kb} KB)`);
+            docPayload = { _compressed: true, d: compressed };
+        } else {
+            docPayload = cleanState;
+        }
+
         const docRef = db.collection("jccb").doc("state");
         
         if (!isBackground) {
-            await docRef.set(cleanState);
+            await docRef.set(docPayload);
             hideSaveBanner(); // Clear any previous warning on successful save
         } else {
-            docRef.set(cleanState)
+            docRef.set(docPayload)
                 .then(() => hideSaveBanner())
                 .catch(e => {
                     console.error("Background state save failed", e);
