@@ -72,13 +72,13 @@ let lastAutoBackupDate = "";
 
 // ==================== STATE MANAGEMENT ====================
 let state = {
-    branches: [],
-    products: [],
-    valuers: [],
+    branches: [...INITIAL_BRANCHES],
+    products: [...INITIAL_PRODUCTS],
+    valuers: [...INITIAL_VALUERS],
     loans: [],
     customers: [],
     goldRates: {}, 
-    accountSeeds: {}, 
+    accountSeeds: { ...DEFAULT_ACCOUNT_SEEDS }, 
     lastPacketSeed: 100, 
     currentSession: null,
     editingLoanId: null
@@ -5928,11 +5928,18 @@ function initDeleteAllLoansHandler() {
 }
 
 // ==================== APP INITIALIZATION ====================
-document.addEventListener("DOMContentLoaded", async () => {
-    await loadState();
+document.addEventListener("DOMContentLoaded", () => {
+    // Synchronously initialize the UI first so it never hangs
     try { prepareEntryForm(); } catch (e) { console.error("prepareEntryForm failed:", e); }
     try { initTabs(); } catch (e) { console.error("initTabs failed:", e); }
     try { initAuth(); } catch (e) { console.error("initAuth failed:", e); }
+    
+    // Load state asynchronously without blocking
+    loadState().then(() => {
+        // Re-run initAuth to update branches if they were fetched from the cloud
+        try { initAuth(); } catch(e){}
+    }).catch(e => console.error(e));
+
     initFormSubmit();
     initPrintModal();
     initPhotoUploads();
