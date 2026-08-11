@@ -202,6 +202,8 @@ async function loadState() {
                 }
             });
         } else {
+            // Firebase document is empty or new - load defaults WITHOUT saving back to Firebase
+            // (saving here could overwrite existing data that failed to load due to connectivity issues)
             state.branches = [...INITIAL_BRANCHES];
             state.products = [...INITIAL_PRODUCTS];
             state.valuers = [...INITIAL_VALUERS];
@@ -225,7 +227,8 @@ async function loadState() {
                 if (raw) localSession = JSON.parse(raw);
             } catch(e) {}
             state.currentSession = localSession;
-            await saveState();
+            // NOTE: Do NOT call saveState() here - this prevents wiping real Firebase data
+            // if load failed due to connectivity, quota, or other transient errors
         }
     } catch (e) {
         // Silently log the Firebase error; fallback data is loaded in the 'finally' block
