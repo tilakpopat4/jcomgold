@@ -5930,9 +5930,9 @@ function initDeleteAllLoansHandler() {
 // ==================== APP INITIALIZATION ====================
 document.addEventListener("DOMContentLoaded", async () => {
     await loadState();
-    prepareEntryForm();
-    initTabs();
-    initAuth();
+    try { prepareEntryForm(); } catch (e) { console.error("prepareEntryForm failed:", e); }
+    try { initTabs(); } catch (e) { console.error("initTabs failed:", e); }
+    try { initAuth(); } catch (e) { console.error("initAuth failed:", e); }
     initFormSubmit();
     initPrintModal();
     initPhotoUploads();
