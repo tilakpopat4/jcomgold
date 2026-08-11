@@ -1,6 +1,3 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-analytics.js";
-import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAOIUkyCR_88wGGXb10qmdyK13xWPDSOCU",
@@ -12,9 +9,9 @@ const firebaseConfig = {
   measurementId: "G-KGRPF845CW"
 };
 
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
-const db = getFirestore(app);
+firebase.initializeApp(firebaseConfig);
+const analytics = firebase.analytics();
+const db = firebase.firestore();
 
 // ==================== INITIAL SEED DATA ====================
 const INITIAL_BRANCHES = [
@@ -105,8 +102,8 @@ function hideSync() {
 async function loadState() {
     showSync();
     try {
-        const docRef = doc(db, "jccb", "state");
-        const docSnap = await getDoc(docRef);
+        const docRef = db.collection("jccb").doc("state");
+        const docSnap = await docRef.get();
         
         let stored = null;
         if (docSnap.exists()) {
@@ -261,12 +258,12 @@ async function saveState(isBackground = false, throwOnError = false) {
         delete stateToUpload.currentSession;
         delete stateToUpload.editingLoanId;
         const cleanState = JSON.parse(JSON.stringify(stateToUpload));
-        const docRef = doc(db, "jccb", "state");
+        const docRef = db.collection("jccb").doc("state");
         
         if (!isBackground) {
-            await setDoc(docRef, cleanState);
+            await docRef.set(cleanState);
         } else {
-            setDoc(docRef, cleanState).catch(e => console.error("Background state save failed", e));
+            docRef.set(cleanState).catch(e => console.error("Background state save failed", e));
         }
     } catch (e) {
         console.error("Error saving remote state", e);
@@ -797,6 +794,7 @@ function prepareEntryForm() {
     });
 
     checkGoldRateForDate(todayStr);
+    autoCalculatePacketNumber(todayStr);
 
     loanDateInput.addEventListener("change", () => {
         checkGoldRateForDate(loanDateInput.value);
@@ -1185,12 +1183,8 @@ function calculateCharges() {
         }
 
         // Stamp Charge
-        if (amount <= 50000) {
-            stampCharge = 0;
-        } else {
-            const calculated = roundTo10(Math.round(amount * 0.25 / 100));
-            stampCharge = Math.min(300, calculated);
-        }
+        const calculated = Math.ceil((amount * 0.50 / 100) / 10) * 10;
+        stampCharge = calculated;
 
         if (amount > 200000 && (productCode === "GOD-3553" || productCode === "3553")) {
             stampCharge += 300;
@@ -5567,74 +5561,7 @@ function exportFullBackupToExcel() {
         }));
 
         // 7. Seeds Sheet
-        const seedsData = [];
-        state.branches.forEach(b => {
-            const branchSeeds = state.accountSeeds[b.code] || {};
-            const lastPacket = state.lastPacketSeed[b.code] !== undefined ? state.lastPacketSeed[b.code] : 100;
-            
-            Object.keys(branchSeeds).forEach(pCode => {
-                seedsData.push({
-                    "Branch Code": b.code,
-                    "Product Code": pCode,
-                    "Account Seed": branchSeeds[pCode],
-                    "Last Packet Seed": lastPacket
-                });
-            });
-            if (Object.keys(branchSeeds).length === 0) {
-                seedsData.push({
-                    "Branch Code": b.code,
-                    "Product Code": "-",
-                    "Account Seed": "-",
-                    "Last Packet Seed": lastPacket
-                });
-            }
-        });
-
-        // 8. Photos Sheet (Chunks of 30,000 characters)
-        const photosData = [];
-        const CHUNK_SIZE = 30000;
-
-        function addPhotoRows(keyId, type, base64Str) {
-            if (!base64Str) return;
-            const row = {
-                "Key ID": keyId,
-                "Type": type
-            };
-            let index = 1;
-            for (let i = 0; i < base64Str.length; i += CHUNK_SIZE) {
-                row[`Chunk ${index}`] = base64Str.substring(i, i + CHUNK_SIZE);
-                index++;
-            }
-            photosData.push(row);
-        }
-
-        // Add photos for loans
-        state.loans.forEach(l => {
-            addPhotoRows(l.id, "borrower_loan", l.custPhoto);
-            addPhotoRows(l.id, "ornaments_loan", l.goldPhoto);
-        });
-
-        // Add photos for customer master
-        state.customers.forEach(c => {
-            addPhotoRows(c.custNo, "customer_master", c.photo);
-        });
-
-        // Create Excel Workbook
-        const wb = XLSX.utils.book_new();
-
-        // Helper to append sheet
-        function appendSheet(data, sheetName) {
-            const ws = XLSX.utils.json_to_sheet(data);
-            XLSX.utils.book_append_sheet(wb, ws, sheetName);
-        }
-
-        appendSheet(branchesData, "Branches");
-        appendSheet(valuersData, "Valuers");
-        appendSheet(productsData, "Products");
-        appendSheet(loansData, "Loans");
-        appendSheet(customersData, "Customers");
-        appendSheet(goldRatesData, "GoldRates");
-        appendSheet(seedsData, "Seeds");
+        
         appendSheet(photosData, "Photos");
 
         const timestamp = getTodayDateStr() + "_" + Date.now();
@@ -5936,9 +5863,10 @@ document.addEventListener("DOMContentLoaded", () => {
     
     // Load state asynchronously without blocking
     loadState().then(() => {
-        // Re-run initAuth to update branches if they were fetched from the cloud
-        try { initAuth(); } catch(e){}
-    }).catch(e => console.error(e));
+          // Re-run initAuth to update branches if they were fetched from the cloud
+          try { initAuth(); } catch(e){}
+          try { prepareEntryForm(); } catch(e){} // Re-run to apply loaded seeds
+      }).catch(e => console.error(e));
 
     initFormSubmit();
     initPrintModal();
@@ -6359,7 +6287,7 @@ function printVoucher3725(loanId) {
                     </div>
                     <div style="width: 100px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 5px;">
                         <div style="width: 90px; height: 110px; border: 1.5px solid #000000; display: flex; align-items: center; justify-content: center; overflow: hidden; background-color: #f9f9f9; padding: 2px;">
-                            ${loan.customerPhoto ? \`<img src="\${loan.customerPhoto}" style="max-width: 100%; max-height: 100%; object-fit: contain;">\` : '<span style="font-size:10px; color:#666;">Photo</span>'}
+                            ${loan.customerPhoto ? `<img src="${loan.customerPhoto}" style="max-width: 100%; max-height: 100%; object-fit: contain;">` : '<span style="font-size:10px; color:#666;">Photo</span>'}
                         </div>
                     </div>
                 </div>
@@ -6444,7 +6372,7 @@ function printVoucher3725(loanId) {
                     </table>
                     <div style="width: 130px; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 5px;">
                         <div style="width: 120px; height: 95px; border: 1.5px solid #000000; display: flex; align-items: center; justify-content: center; overflow: hidden; background-color: #f9f9f9; padding: 2px;">
-                            ${loan.goldPhoto ? \`<img src="\${loan.goldPhoto}" style="max-width: 100%; max-height: 100%; object-fit: contain;">\` : '<span style="font-size:10px; color:#666;">Ornaments Photo</span>'}
+                            ${loan.goldPhoto ? `<img src="${loan.goldPhoto}" style="max-width: 100%; max-height: 100%; object-fit: contain;">` : '<span style="font-size:10px; color:#666;">Ornaments Photo</span>'}
                         </div>
                     </div>
                 </div>

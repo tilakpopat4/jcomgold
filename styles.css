@@ -1886,10 +1886,12 @@ input.admin-editable:focus, select.admin-editable:focus {
         padding: 0 !important;
     }
     .print-page-layout {
-        height: 270mm !important;
+        height: auto !important;
         box-sizing: border-box !important;
-        overflow: hidden !important;
-        position: relative !important;
+        page-break-inside: avoid !important;
+        page-break-after: always !important;
+        transform: scale(0.95);
+        transform-origin: top center;
     }
 }
 
