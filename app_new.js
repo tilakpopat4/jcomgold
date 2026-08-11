@@ -228,13 +228,8 @@ async function loadState() {
             await saveState();
         }
     } catch (e) {
-        console.error("Error loading remote state", e);
-        // Only show alert if it's not a quota error
-        if (e.message && e.message.includes("quota")) {
-            console.warn("Firebase Quota Exceeded. Running in offline/fallback mode.");
-        } else {
-            alert("Failed to connect to the central database. You may be offline or there is a connection issue.");
-        }
+        // Silently log the Firebase error; fallback data is loaded in the 'finally' block
+        console.warn("Firebase unavailable, running in offline/fallback mode:", e.message || e);
     } finally {
         // GUARANTEED FALLBACK: Even if Firebase fails entirely, we must have branches/products/valuers to operate
         if (!state.branches || !Array.isArray(state.branches) || state.branches.length === 0) {
@@ -266,10 +261,8 @@ async function saveState(isBackground = false, throwOnError = false) {
             docRef.set(cleanState).catch(e => console.error("Background state save failed", e));
         }
     } catch (e) {
-        console.error("Error saving remote state", e);
-        if (!isBackground) {
-            alert("Failed to sync data to the central database: " + e.message);
-        }
+        console.error("Error saving remote state:", e.message || e);
+        // No alert – silently log; data is still saved locally for the session
         if (throwOnError) throw e;
     } finally {
         if (!isBackground) hideSync();
