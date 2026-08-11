@@ -126,17 +126,6 @@ async function loadState() {
         if (stored) {
             state = JSON.parse(stored);
             
-            // Ensure core settings are populated if they were somehow wiped
-            if (!state.branches || state.branches.length === 0) {
-                state.branches = [...INITIAL_BRANCHES];
-            }
-            if (!state.products || state.products.length === 0) {
-                state.products = [...INITIAL_PRODUCTS];
-            }
-            if (!state.valuers || state.valuers.length === 0) {
-                state.valuers = [...INITIAL_VALUERS];
-            }
-            
             state.currentSession = localSession;
             state.editingLoanId = localEditingLoanId;
             
@@ -243,8 +232,24 @@ async function loadState() {
         }
     } catch (e) {
         console.error("Error loading remote state", e);
-        alert("Failed to connect to the central database. Please check your internet connection.");
+        // Only show alert if it's not a quota error
+        if (e.message && e.message.includes("quota")) {
+            console.warn("Firebase Quota Exceeded. Running in offline/fallback mode.");
+        } else {
+            alert("Failed to connect to the central database. You may be offline or there is a connection issue.");
+        }
     } finally {
+        // GUARANTEED FALLBACK: Even if Firebase fails entirely, we must have branches/products/valuers to operate
+        if (!state.branches || state.branches.length === 0) {
+            state.branches = [...INITIAL_BRANCHES];
+        }
+        if (!state.products || state.products.length === 0) {
+            state.products = [...INITIAL_PRODUCTS];
+        }
+        if (!state.valuers || state.valuers.length === 0) {
+            state.valuers = [...INITIAL_VALUERS];
+        }
+        
         hideSync();
     }
 }
