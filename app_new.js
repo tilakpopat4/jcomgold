@@ -240,13 +240,13 @@ async function loadState() {
         }
     } finally {
         // GUARANTEED FALLBACK: Even if Firebase fails entirely, we must have branches/products/valuers to operate
-        if (!state.branches || state.branches.length === 0) {
+        if (!state.branches || !Array.isArray(state.branches) || state.branches.length === 0) {
             state.branches = [...INITIAL_BRANCHES];
         }
-        if (!state.products || state.products.length === 0) {
+        if (!state.products || !Array.isArray(state.products) || state.products.length === 0) {
             state.products = [...INITIAL_PRODUCTS];
         }
-        if (!state.valuers || state.valuers.length === 0) {
+        if (!state.valuers || !Array.isArray(state.valuers) || state.valuers.length === 0) {
             state.valuers = [...INITIAL_VALUERS];
         }
         
