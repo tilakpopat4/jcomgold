@@ -125,7 +125,23 @@ async function loadState() {
             
             state.currentSession = localSession;
             state.editingLoanId = localEditingLoanId;
-            
+
+            // Merge photos back from localStorage (photos are stored separately to avoid Firestore 1MB limit)
+            try {
+                const savedPhotos = JSON.parse(localStorage.getItem("jccb_photos") || "{}");
+                if (state.loans) {
+                    state.loans.forEach(l => {
+                        if (savedPhotos[l.id + "_cust"]) l.custPhoto = savedPhotos[l.id + "_cust"];
+                        if (savedPhotos[l.id + "_gold"]) l.goldPhoto = savedPhotos[l.id + "_gold"];
+                    });
+                }
+                if (state.customers) {
+                    state.customers.forEach(c => {
+                        if (savedPhotos["cust_" + c.custNo]) c.photo = savedPhotos["cust_" + c.custNo];
+                    });
+                }
+            } catch(pe) { console.warn("Could not restore photos from localStorage", pe); }
+
             // Migrate old product codes (3527 -> GNA-3527, 3553 -> GOD-3553)
             if (state.products) {
                 state.products.forEach(p => {
@@ -256,6 +272,26 @@ async function saveState(isBackground = false, throwOnError = false) {
         delete stateToUpload.currentSession;
         delete stateToUpload.editingLoanId;
         const cleanState = JSON.parse(JSON.stringify(stateToUpload));
+
+        // Strip photos before uploading to Firebase (Firestore has 1MB limit)
+        // Photos are saved separately to localStorage
+        const photosStore = JSON.parse(localStorage.getItem("jccb_photos") || "{}");
+        let photosChanged = false;
+        if (cleanState.loans) {
+            cleanState.loans.forEach(l => {
+                if (l.custPhoto) { photosStore[l.id + "_cust"] = l.custPhoto; l.custPhoto = ""; photosChanged = true; }
+                if (l.goldPhoto) { photosStore[l.id + "_gold"] = l.goldPhoto; l.goldPhoto = ""; photosChanged = true; }
+            });
+        }
+        if (cleanState.customers) {
+            cleanState.customers.forEach(c => {
+                if (c.photo) { photosStore["cust_" + c.custNo] = c.photo; c.photo = ""; photosChanged = true; }
+            });
+        }
+        if (photosChanged) {
+            try { localStorage.setItem("jccb_photos", JSON.stringify(photosStore)); } catch(le) { console.warn("localStorage full, photos may not persist", le); }
+        }
+
         const docRef = db.collection("jccb").doc("state");
         
         if (!isBackground) {
@@ -5831,7 +5867,23 @@ function importFullBackupFromExcel(file) {
             state.accountSeeds = importedAccountSeeds;
             state.lastPacketSeed = importedLastPacketSeed;
 
-            // Sync with spreadsheet database (throwOnError = true to catch failures)
+            // Pre-save all photos to localStorage BEFORE calling saveState
+            // (saveState strips photos from Firebase to stay under the 1MB limit)
+            const photosStore = {};
+            importedLoans.forEach(l => {
+                if (l.custPhoto) photosStore[l.id + "_cust"] = l.custPhoto;
+                if (l.goldPhoto) photosStore[l.id + "_gold"] = l.goldPhoto;
+            });
+            importedCustomers.forEach(c => {
+                if (c.photo) photosStore["cust_" + c.custNo] = c.photo;
+            });
+            try {
+                localStorage.setItem("jccb_photos", JSON.stringify(photosStore));
+            } catch(le) {
+                console.warn("localStorage full, some photos may not be saved locally:", le);
+            }
+
+            // Sync with Firebase (throwOnError = true to catch failures)
             await saveState(false, true);
 
             alert("ડેટાબેઝ સફળતાપૂર્વક રીસ્ટોર થઈ ગયો છે! પોર્ટલ હવે રીલોડ થશે.");
