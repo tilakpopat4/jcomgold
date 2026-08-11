@@ -260,16 +260,39 @@ async function saveState(isBackground = false, throwOnError = false) {
         
         if (!isBackground) {
             await docRef.set(cleanState);
+            hideSaveBanner(); // Clear any previous warning on successful save
         } else {
-            docRef.set(cleanState).catch(e => console.error("Background state save failed", e));
+            docRef.set(cleanState)
+                .then(() => hideSaveBanner())
+                .catch(e => {
+                    console.error("Background state save failed", e);
+                    showSaveBanner("⚠️ Data NOT saved to database! Firebase error: " + (e.message || e) + ". Please take an Excel backup now.");
+                });
         }
     } catch (e) {
         console.error("Error saving remote state:", e.message || e);
-        // No alert – silently log; data is still saved locally for the session
+        showSaveBanner("⚠️ Data NOT saved to database! Error: " + (e.message || e) + ". Please take an Excel backup now.");
         if (throwOnError) throw e;
     } finally {
         if (!isBackground) hideSync();
     }
+}
+
+function showSaveBanner(msg) {
+    let banner = document.getElementById("save-error-banner");
+    if (!banner) {
+        banner = document.createElement("div");
+        banner.id = "save-error-banner";
+        banner.style.cssText = "position:fixed;top:0;left:0;width:100%;background:#c0392b;color:#fff;font-weight:700;font-size:14px;padding:10px 20px;z-index:99999;text-align:center;box-shadow:0 2px 10px rgba(0,0,0,0.5);";
+        document.body.prepend(banner);
+    }
+    banner.textContent = msg;
+    banner.style.display = "block";
+}
+
+function hideSaveBanner() {
+    const banner = document.getElementById("save-error-banner");
+    if (banner) banner.style.display = "none";
 }
 
 // ==================== UTILITY HELPERS ====================
