@@ -5682,10 +5682,14 @@ function importFullBackupFromExcel(file) {
         try {
             showSync();
             const data = new Uint8Array(e.target.result);
-            const workbook = XLSX.read(data, { type: 'array' });
+            // Use improved options: cellDates for proper date parsing, raw:false for formatted values
+            const workbook = XLSX.read(data, { type: 'array', cellDates: true, raw: false, dense: false });
+
+            // Log all detected sheets for debugging
+            console.log("📋 Detected sheets in backup file:", workbook.SheetNames);
 
             if (!workbook.Sheets["Branches"] || !workbook.Sheets["Loans"] || !workbook.Sheets["Products"]) {
-                throw new Error("પસંદ કરેલ ફાઇલ JCCB ગોલ્ડ લોન બેકઅપ ફાઇલ નથી અથવા તેમાં જરૂરી સીટો ગેરહાજર છે.");
+                throw new Error("પસંદ કરેલ ફાઇલ JCCB ગોલ્ડ લોન બેકઅપ ફાઇલ નથી અથવા તેમાં જરૂરી સીટો ગેરહાજર છે. Available sheets: " + workbook.SheetNames.join(", "));
             }
 
             function getSheetJSON(sheetName) {
