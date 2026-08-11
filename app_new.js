@@ -125,6 +125,18 @@ async function loadState() {
 
         if (stored) {
             state = JSON.parse(stored);
+            
+            // Ensure core settings are populated if they were somehow wiped
+            if (!state.branches || state.branches.length === 0) {
+                state.branches = [...INITIAL_BRANCHES];
+            }
+            if (!state.products || state.products.length === 0) {
+                state.products = [...INITIAL_PRODUCTS];
+            }
+            if (!state.valuers || state.valuers.length === 0) {
+                state.valuers = [...INITIAL_VALUERS];
+            }
+            
             state.currentSession = localSession;
             state.editingLoanId = localEditingLoanId;
             
