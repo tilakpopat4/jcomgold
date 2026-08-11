@@ -864,14 +864,11 @@ function prepareEntryForm() {
 
     isMemberSelect.addEventListener("change", () => {
         if (isMemberSelect.value === "Yes") {
-            memberNoInput.required = true;
-            isNewMemberCheck.checked = false;
-            isNewMemberCheck.disabled = true;
+            if (memberNoInput) memberNoInput.required = true;
+            if (isNewMemberCheck) { isNewMemberCheck.checked = false; isNewMemberCheck.disabled = true; }
         } else {
-            memberNoInput.required = false;
-            memberNoInput.value = "";
-            isNewMemberCheck.checked = true;
-            isNewMemberCheck.disabled = true;
+            if (memberNoInput) { memberNoInput.required = false; memberNoInput.value = ""; }
+            if (isNewMemberCheck) { isNewMemberCheck.checked = true; isNewMemberCheck.disabled = true; }
         }
         calculateCharges();
     });
@@ -1697,17 +1694,15 @@ function editLoanRecord(loanId) {
     const memberNoInput = document.getElementById("member-no");
     const isNewMemberCheck = document.getElementById("is-new-member-checkbox");
 
-    isMemberSelect.value = loan.isMember;
+    if (isMemberSelect) isMemberSelect.value = loan.isMember;
     if (loan.isMember === "Yes") {
-        memberNoInput.required = true;
-        memberNoInput.value = loan.memberNo;
-        isNewMemberCheck.checked = false;
+        if (memberNoInput) { memberNoInput.required = true; memberNoInput.value = loan.memberNo; }
+        if (isNewMemberCheck) isNewMemberCheck.checked = false;
     } else {
-        memberNoInput.required = false;
-        memberNoInput.value = "";
-        isNewMemberCheck.checked = true;
+        if (memberNoInput) { memberNoInput.required = false; memberNoInput.value = ""; }
+        if (isNewMemberCheck) isNewMemberCheck.checked = true;
     }
-    isNewMemberCheck.disabled = true;
+    if (isNewMemberCheck) isNewMemberCheck.disabled = true;
 
     document.getElementById("packet-no").value = loan.packetNo;
 
