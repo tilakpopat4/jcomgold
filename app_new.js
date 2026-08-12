@@ -106,23 +106,15 @@ async function loadState() {
         const docSnap = await docRef.get();
         
         let stored = null;
-        if (docSnap.exists()) {
+        if (docSnap.exists) {
             const data = docSnap.data();
-            alert("DEBUG: Firebase doc fetched. Keys: " + Object.keys(data).length + ", Compressed: " + !!data._compressed);
             if (Object.keys(data).length > 0) {
                 if (data._compressed && data.d) {
                     stored = LZString.decompressFromBase64(data.d) || LZString.decompress(data.d);
-                    alert("DEBUG: Decompressed string length: " + (stored ? stored.length : "NULL"));
-                    if (!stored) alert("DEBUG: Decompression returned null/empty!");
                 } else {
                     stored = JSON.stringify(data);
-                    alert("DEBUG: Uncompressed raw JSON length: " + stored.length);
                 }
-            } else {
-                alert("DEBUG: Firestore document exists but is empty.");
             }
-        } else {
-            alert("DEBUG: Firestore document does not exist!");
         }
 
         let localSession = null;
@@ -260,7 +252,6 @@ async function loadState() {
         }
     } catch (e) {
         // Silently log the Firebase error; fallback data is loaded in the 'finally' block
-        alert("DEBUG: Firebase doc.get() THREW AN ERROR: " + (e.message || e));
         console.warn("Firebase unavailable, running in offline/fallback mode:", e.message || e);
     } finally {
         // GUARANTEED FALLBACK: Even if Firebase fails entirely, we must have branches/products/valuers to operate
