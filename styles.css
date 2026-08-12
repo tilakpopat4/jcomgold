@@ -1336,6 +1336,11 @@ input[readonly] {
         background-color: white !important;
         color: black !important;
     }
+
+    /* Always hide overlay in print output */
+    #print-overlay {
+        display: none !important;
+    }
     
     #login-container, #app-container {
         display: none !important;

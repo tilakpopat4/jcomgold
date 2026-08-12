@@ -6064,8 +6064,8 @@ function printVoucher3725(loanId) {
         printArea.innerHTML = html;
 
         setTimeout(() => {
-            window.print();
             if (printOverlay) printOverlay.style.display = "none";
+            window.print();
         }, 500);
     } catch(e) {
         alert("Error in printVoucher3725: " + e.message);
