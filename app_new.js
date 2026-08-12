@@ -109,14 +109,17 @@ async function loadState() {
         if (docSnap.exists()) {
             const data = docSnap.data();
             if (Object.keys(data).length > 0) {
-                // Handle compressed state (saved when data exceeded ~500KB)
                 if (data._compressed && data.d) {
-                    console.log("📦 Loading COMPRESSED state from Firebase");
                     stored = LZString.decompressFromBase64(data.d) || LZString.decompress(data.d);
+                    if (!stored) alert("DEBUG: Decompression returned null/empty!");
                 } else {
                     stored = JSON.stringify(data);
                 }
+            } else {
+                alert("DEBUG: Firestore document exists but is empty.");
             }
+        } else {
+            alert("DEBUG: Firestore document does not exist!");
         }
 
         let localSession = null;
@@ -5954,6 +5957,7 @@ function importFullBackupFromExcel(file) {
             alert("ડેટાબેઝ સફળતાપૂર્વક રીસ્ટોર થઈ ગયો છે! પોર્ટલ હવે રીલોડ થશે.");
             location.reload();
         } catch (e) {
+            alert("DEBUG ERROR IN RESTORE: " + e.message + "\n" + e.stack);
             console.error("Restore failed", e);
             alert("રીસ્ટોર કરવામાં ખામી આવી: " + e.message);
         } finally {
