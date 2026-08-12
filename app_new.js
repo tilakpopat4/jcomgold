@@ -1385,7 +1385,7 @@ function calculateCharges() {
         // Stamp Charge: 0.25% of loan amount, rounded UP to nearest 10, capped < 300
         const rawStamp = amount * 0.25 / 100;
         const roundedStamp = Math.ceil(rawStamp / 10) * 10;
-        stampCharge = Math.min(roundedStamp, 290); // keep < 300
+        stampCharge = Math.min(roundedStamp, 300); // cap at 300
 
         // Service Charge
         if (productCode.includes("3725") || productCode.includes("3524")) {
