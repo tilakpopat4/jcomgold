@@ -5529,7 +5529,15 @@ function printVoucher3725(loanId) {
         let totalFineWeight = 0;
         let totalFineValue = 0;
 
-        let orns = (loan.ornamentsList && Array.isArray(loan.ornamentsList)) ? loan.ornamentsList : [];
+        let orns = (loan.ornamentsList && Array.isArray(loan.ornamentsList) && loan.ornamentsList.length > 0)
+            ? loan.ornamentsList
+            : [{
+                detail: loan.ornamentsDesc || 'Gold Ornaments',
+                qty: 1,
+                gross: parseFloat(loan.goldWeightGross || loan.goldWeight) || 0,
+                net: parseFloat(loan.goldWeight) || 0,
+                carat: 22
+              }];
         for(let i = 0; i < 10; i++) {
             if(i < orns.length) {
                 let o = orns[i];
@@ -5538,7 +5546,7 @@ function printVoucher3725(loanId) {
                 let oQty = parseInt(o.qty) || 0;
                 let oCarat = parseFloat(o.carat) || 22;
                 
-                let fineWt = oNet * (oCarat / 24);
+                let fineWt = (oNet * oCarat) / 22;
                 let fineVal = 0;
                 if (loan.marketRate) {
                     fineVal = fineWt * (parseFloat(loan.marketRate) / 10);
