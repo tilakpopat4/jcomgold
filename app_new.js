@@ -260,6 +260,7 @@ async function loadState() {
         }
     } catch (e) {
         // Silently log the Firebase error; fallback data is loaded in the 'finally' block
+        alert("DEBUG: Firebase doc.get() THREW AN ERROR: " + (e.message || e));
         console.warn("Firebase unavailable, running in offline/fallback mode:", e.message || e);
     } finally {
         // GUARANTEED FALLBACK: Even if Firebase fails entirely, we must have branches/products/valuers to operate
