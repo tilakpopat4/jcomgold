@@ -5799,6 +5799,7 @@ function importFullBackupFromExcel(file) {
                 address: r["Address"] || "",
                 savingsAc: String(r["Savings A/c"] || "")
             }));
+            alert("DEBUG: Parsed " + importedValuers.length + " valuers from your Excel file!");
 
             // Parse Products
             const productsRows = getSheetJSON("Products");
