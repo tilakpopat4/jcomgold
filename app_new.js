@@ -265,10 +265,22 @@ async function loadState() {
         }
     } catch (e) {
         // Silently log the Firebase error; fallback data is loaded in the 'finally' block
-        alert("CRITICAL FATAL ERROR IN LOADSTATE: " + (e.stack || e.message || e));
         console.warn("Firebase unavailable, running in offline/fallback mode:", e.message || e);
     } finally {
-        // GUARANTEED FALLBACK: Even if Firebase fails entirely, we must have branches/products/valuers to operate
+        // GUARANTEED FALLBACK: Even if Firebase fails entirely, check LocalStorage backup first!
+        try {
+            const localBackup = localStorage.getItem("jccb_full_state_backup");
+            if (localBackup && (!state.branches || !state.valuers || state.valuers.length === 0 || state.valuers[0].name === "Soni Ramesh")) {
+                const parsedLocal = JSON.parse(localBackup);
+                if (parsedLocal && parsedLocal.valuers && parsedLocal.valuers.length > 0) {
+                    state = parsedLocal;
+                    console.log("✅ Successfully restored state from BULLETPROOF LocalStorage backup!");
+                }
+            }
+        } catch(e) {
+            console.error("Local backup failed", e);
+        }
+
         if (!state.branches || !Array.isArray(state.branches) || state.branches.length === 0) {
             state.branches = [...INITIAL_BRANCHES];
         }
@@ -328,6 +340,14 @@ async function saveState(isBackground = false, throwOnError = false) {
         }
 
         const docRef = db.collection("jccb").doc("state");
+        
+        // --- BULLETPROOF LOCAL BACKUP ---
+        // Save the full state to localStorage so it survives reloads even if Firebase is blocked
+        try {
+            localStorage.setItem("jccb_full_state_backup", rawJson);
+        } catch(e) {
+            console.warn("Could not save full state to localStorage (might be too large)", e);
+        }
         
         if (!isBackground) {
             await docRef.set(docPayload);
