@@ -141,6 +141,9 @@
                 <button class="nav-item" data-tab="product-master-view" id="product-master-nav">
                     <i class="fa-solid fa-tags"></i> Product Master
                 </button>
+                <button class="nav-item" data-tab="gold-rate-master-view" id="gold-rate-master-nav">
+                    <i class="fa-solid fa-coins"></i> Gold Rate Master
+                </button>
                 
                 <div class="nav-divider">Configuration</div>
                 <button class="nav-item" data-tab="settings-view">
@@ -969,6 +972,56 @@
                                         </tr>
                                     </thead>
                                     <tbody id="product-list-tbody">
+                                        <!-- Rendered dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- GOLD RATE MASTER VIEW -->
+                <section id="gold-rate-master-view" class="tab-content hidden">
+                    <div class="view-header">
+                        <h2><i class="fa-solid fa-coins"></i> Gold Rate Master</h2>
+                        <p>View and manage daily gold market rates for valuation tracking</p>
+                    </div>
+
+                    <div class="master-layout-grid">
+                        <div class="master-form-card card">
+                            <h3>Add/Edit Daily Gold Rate</h3>
+                            <form id="gold-rate-master-form">
+                                <div class="form-group">
+                                    <label for="gold-rate-date">Date</label>
+                                    <input type="date" id="gold-rate-date" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="gold-rate-val">Gold Rate (₹ per 10g)</label>
+                                    <input type="number" id="gold-rate-val" placeholder="e.g. 65000" min="1000" required>
+                                </div>
+                                <button type="submit" id="gold-rate-save-btn" class="btn btn-primary btn-block">
+                                    <i class="fa-solid fa-save"></i> Save Rate
+                                </button>
+                            </form>
+                        </div>
+                        <div class="master-list-card card">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                <h3>Historical Gold Rates</h3>
+                                <div style="display: flex; gap: 10px; align-items: center;">
+                                    <label for="gold-rate-search" style="font-size: 12px; font-weight: 600; white-space: nowrap;">Search Date:</label>
+                                    <input type="text" id="gold-rate-search" placeholder="YYYY-MM-DD" style="padding: 6px; border-radius: 6px; border: 1px solid var(--border-color); font-size: 12px; background-color: var(--card-bg); color: var(--text-main);">
+                                </div>
+                            </div>
+                            <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                                <table class="table compact-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Rate (₹ per 10g)</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="gold-rate-list-tbody">
                                         <!-- Rendered dynamically -->
                                     </tbody>
                                 </table>
