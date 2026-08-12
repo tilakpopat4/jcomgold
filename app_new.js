@@ -1976,21 +1976,26 @@ function editLoanRecord(loanId) {
     const submitBtn = form.querySelector('button[type="submit"]');
     submitBtn.innerHTML = '<i class="fa-solid fa-check-double"></i> Update Loan Entry';
 
-    calculateCharges();
-
-    // Restore saved charge values (calculateCharges may have overwritten them)
-    if (loan.shareA       !== undefined) document.getElementById("charge-share-a").value    = loan.shareA;
-    if (loan.shareB       !== undefined) document.getElementById("charge-share-b").value    = loan.shareB;
-    if (loan.memberFee    !== undefined) document.getElementById("charge-member-fee").value = loan.memberFee;
-    if (loan.valuationCharge !== undefined) document.getElementById("charge-valuation").value = loan.valuationCharge;
-    if (loan.stampCharge  !== undefined) document.getElementById("charge-stamp").value      = loan.stampCharge;
-    if (loan.serviceCharge !== undefined) document.getElementById("charge-service").value   = loan.serviceCharge;
-    if (loan.docCharge    !== undefined) document.getElementById("charge-document").value   = loan.docCharge;
-    if (loan.insCharge    !== undefined) document.getElementById("charge-insurance").value  = loan.insCharge;
-    if (loan.cgst         !== undefined) document.getElementById("charge-cgst").value       = loan.cgst;
-    if (loan.sgst         !== undefined) document.getElementById("charge-sgst").value       = loan.sgst;
-    if (loan.adjustment   !== undefined) document.getElementById("charge-adjustment").value = loan.adjustment;
-    updateTotals();
+    // If this loan has saved charge values, load them directly (reliable).
+    // Only fall back to calculateCharges() for very old loans with no saved charges.
+    const hasSavedCharges = (loan.serviceCharge !== undefined && loan.serviceCharge !== null);
+    if (hasSavedCharges) {
+        document.getElementById("charge-share-a").value    = loan.shareA    ?? 0;
+        document.getElementById("charge-share-b").value    = loan.shareB    ?? 0;
+        document.getElementById("charge-member-fee").value = loan.memberFee ?? 0;
+        document.getElementById("charge-valuation").value  = loan.valuationCharge ?? 0;
+        document.getElementById("charge-stamp").value      = loan.stampCharge ?? 0;
+        document.getElementById("charge-service").value    = loan.serviceCharge ?? 0;
+        document.getElementById("charge-document").value   = loan.docCharge ?? 0;
+        document.getElementById("charge-insurance").value  = loan.insCharge ?? 0;
+        document.getElementById("charge-cgst").value       = loan.cgst ?? 0;
+        document.getElementById("charge-sgst").value       = loan.sgst ?? 0;
+        document.getElementById("charge-adjustment").value = loan.adjustment ?? 0;
+        updateTotals();
+    } else {
+        // Old loan — no saved charges, calculate fresh
+        calculateCharges();
+    }
 }
 
 function exportLoansToCSV() {
