@@ -1,4 +1,4 @@
-﻿
+
 const firebaseConfig = {
   apiKey: "AIzaSyAOIUkyCR_88wGGXb10qmdyK13xWPDSOCU",
   authDomain: "jccbgold.firebaseapp.com",
@@ -5494,7 +5494,7 @@ function printVoucher3725(loanId) {
         const printOverlay = document.getElementById("print-overlay");
         const printArea = document.getElementById("print-area");
 
-        printOverlay.classList.add("active");
+        if (printOverlay) printOverlay.style.display = "flex";
 
         const gujWords = numberToGujaratiWords(loan.loanAmount || 0);
         const marketVal = parseFloat(loan.marketValue) || 0;
@@ -6065,12 +6065,13 @@ function printVoucher3725(loanId) {
 
         setTimeout(() => {
             window.print();
-            printOverlay.classList.remove("active");
+            if (printOverlay) printOverlay.style.display = "none";
         }, 500);
     } catch(e) {
         alert("Error in printVoucher3725: " + e.message);
         console.error(e);
-        document.getElementById("print-overlay").classList.remove("active");
+        const _ov = document.getElementById("print-overlay");
+        if (_ov) _ov.style.display = "none";
     }
 }
 
