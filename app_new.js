@@ -117,6 +117,8 @@ async function loadState() {
                     if (data._compressed && data.d) {
                         stored = LZString.decompressFromBase64(data.d) || LZString.decompress(data.d);
                         if (!stored) alert("CRITICAL ERROR: LZString decompression failed! data.d length: " + data.d.length);
+                    } else if (data._rawString) {
+                        stored = data._rawString;
                     } else {
                         stored = JSON.stringify(data);
                     }
@@ -323,20 +325,19 @@ async function saveState(isBackground = false, throwOnError = false) {
         }
 
         // ---- DIAGNOSTIC: measure state size ----
+        // To bypass Firestore's 20,000 field limit, we must ALWAYS compress the JSON into a single string
         const rawJson = JSON.stringify(cleanState);
-        const byteSize = new TextEncoder().encode(rawJson).length;
-        const kb = (byteSize / 1024).toFixed(1);
-        console.log(`💾 State size (after photo strip): ${kb} KB`);
-
-        // Firestore limit is 1MB (1,048,576 bytes). Compress anything > 500KB to be safe.
-        let docPayload;
-        if (byteSize > 512000) {
+        const byteSize = new Blob([rawJson]).size;
+        
+        const docPayload = {};
+        try {
             const compressed = LZString.compressToBase64(rawJson);
-            const compKb = (compressed.length / 1024).toFixed(1);
-            console.log(`🗜️ Compressed to ${compKb} KB (was ${kb} KB)`);
-            docPayload = { _compressed: true, d: compressed };
-        } else {
-            docPayload = cleanState;
+            docPayload._compressed = true;
+            docPayload.d = compressed;
+            console.log(`Payload compressed to ${compressed.length} bytes`);
+        } catch (e) {
+            console.error("Compression failed, saving as raw string", e);
+            docPayload._rawString = rawJson;
         }
 
         const docRef = db.collection("jccb").doc("state");
