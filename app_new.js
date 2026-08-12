@@ -1382,13 +1382,10 @@ function calculateCharges() {
             valuationCharge = Math.min(2000, roundUpTo5(amount * 0.25 / 100));
         }
 
-        // Stamp Charge
-        const calculated = Math.ceil((amount * 0.50 / 100) / 10) * 10;
-        stampCharge = calculated;
-
-        if (amount > 200000 && (productCode === "GOD-3553" || productCode === "3553")) {
-            stampCharge += 300;
-        }
+        // Stamp Charge: 0.25% of loan amount, rounded UP to nearest 10, capped < 300
+        const rawStamp = amount * 0.25 / 100;
+        const roundedStamp = Math.ceil(rawStamp / 10) * 10;
+        stampCharge = Math.min(roundedStamp, 290); // keep < 300
 
         // Service Charge
         if (productCode.includes("3725") || productCode.includes("3524")) {
@@ -1980,6 +1977,20 @@ function editLoanRecord(loanId) {
     submitBtn.innerHTML = '<i class="fa-solid fa-check-double"></i> Update Loan Entry';
 
     calculateCharges();
+
+    // Restore saved charge values (calculateCharges may have overwritten them)
+    if (loan.shareA       !== undefined) document.getElementById("charge-share-a").value    = loan.shareA;
+    if (loan.shareB       !== undefined) document.getElementById("charge-share-b").value    = loan.shareB;
+    if (loan.memberFee    !== undefined) document.getElementById("charge-member-fee").value = loan.memberFee;
+    if (loan.valuationCharge !== undefined) document.getElementById("charge-valuation").value = loan.valuationCharge;
+    if (loan.stampCharge  !== undefined) document.getElementById("charge-stamp").value      = loan.stampCharge;
+    if (loan.serviceCharge !== undefined) document.getElementById("charge-service").value   = loan.serviceCharge;
+    if (loan.docCharge    !== undefined) document.getElementById("charge-document").value   = loan.docCharge;
+    if (loan.insCharge    !== undefined) document.getElementById("charge-insurance").value  = loan.insCharge;
+    if (loan.cgst         !== undefined) document.getElementById("charge-cgst").value       = loan.cgst;
+    if (loan.sgst         !== undefined) document.getElementById("charge-sgst").value       = loan.sgst;
+    if (loan.adjustment   !== undefined) document.getElementById("charge-adjustment").value = loan.adjustment;
+    updateTotals();
 }
 
 function exportLoansToCSV() {
