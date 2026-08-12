@@ -270,7 +270,7 @@ async function loadState() {
         // GUARANTEED FALLBACK: Even if Firebase fails entirely, check LocalStorage backup first!
         try {
             const localBackup = localStorage.getItem("jccb_full_state_backup");
-            if (localBackup && (!state.branches || !state.valuers || state.valuers.length === 0 || state.valuers[0].name === "Soni Ramesh")) {
+            if (localBackup && (!state.branches || !state.valuers || state.valuers.length <= 2)) {
                 const parsedLocal = JSON.parse(localBackup);
                 if (parsedLocal && parsedLocal.valuers && parsedLocal.valuers.length > 0) {
                     state = parsedLocal;
