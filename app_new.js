@@ -6820,7 +6820,7 @@ function printVoucher3725(loanId) {
                 <div style="display:flex; justify-content:space-between; align-items:flex-end; font-size:12px; font-weight:700; margin-top:2px;">
                     <div>
                         <div>સ્થળ : ${loan.branchName}</div>
-                        <div>تારીખ : ${formatDateDMY(loan.date)}</div>
+                        <div>તારીખ : ${formatDateDMY(loan.date)}</div>
                     </div>
                     <div style="text-align:right;">
                         <div style="margin-bottom:2px;">વેલ્યુઅરની સહી: X........................................</div>
@@ -6930,7 +6930,7 @@ function printVoucher3725(loanId) {
 
                 <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 3px; font-size: 12px; font-weight: 700; line-height: 1.4;">
                     <div>
-                        <div>स्थળઃ- ${loan.branchName}</div>
+                        <div>સ્થળઃ- ${loan.branchName}</div>
                         <div>તારીખઃ- ${formatDateDMY(loan.date)}</div>
                     </div>
                 </div>
