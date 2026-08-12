@@ -106,15 +106,28 @@ async function loadState() {
         const docSnap = await docRef.get();
         
         let stored = null;
-        if (docSnap.exists) {
-            const data = docSnap.data();
-            if (Object.keys(data).length > 0) {
-                if (data._compressed && data.d) {
-                    stored = LZString.decompressFromBase64(data.d) || LZString.decompress(data.d);
+        if (docSnap) {
+            const hasExistsMethod = typeof docSnap.exists === 'function';
+            const exists = hasExistsMethod ? docSnap.exists() : !!docSnap.exists;
+            
+            if (exists) {
+                const data = hasExistsMethod ? docSnap.data() : (typeof docSnap.data === 'function' ? docSnap.data() : docSnap);
+                
+                if (data && Object.keys(data).length > 0) {
+                    if (data._compressed && data.d) {
+                        stored = LZString.decompressFromBase64(data.d) || LZString.decompress(data.d);
+                        if (!stored) alert("CRITICAL ERROR: LZString decompression failed! data.d length: " + data.d.length);
+                    } else {
+                        stored = JSON.stringify(data);
+                    }
                 } else {
-                    stored = JSON.stringify(data);
+                    alert("CRITICAL ERROR: docSnap exists but data is empty!");
                 }
+            } else {
+                alert("CRITICAL ERROR: docSnap says it does NOT exist!");
             }
+        } else {
+            alert("CRITICAL ERROR: docSnap is null!");
         }
 
         let localSession = null;
