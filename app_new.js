@@ -100,35 +100,50 @@ function hideSync() {
 }
 
 async function loadState() {
+    console.log("[JCCB-DEBUG] ========== loadState() STARTED ==========");
     showSync();
     try {
         const docRef = db.collection("jccb").doc("state");
+        console.log("[JCCB-DEBUG] Attempting to read Firestore doc: jccb/state");
         const docSnap = await docRef.get();
         
         let stored = null;
         if (docSnap) {
             const hasExistsMethod = typeof docSnap.exists === 'function';
             const exists = hasExistsMethod ? docSnap.exists() : !!docSnap.exists;
+            console.log("[JCCB-DEBUG] Firestore docSnap received. exists:", exists, "| fromCache:", docSnap.metadata ? docSnap.metadata.fromCache : "N/A");
             
             if (exists) {
                 const data = hasExistsMethod ? docSnap.data() : (typeof docSnap.data === 'function' ? docSnap.data() : docSnap);
+                console.log("[JCCB-DEBUG] Firebase data keys:", data ? Object.keys(data) : "null");
                 
                 if (data && Object.keys(data).length > 0) {
                     if (data._compressed && data.d) {
+                        console.log("[JCCB-DEBUG] Decompressing LZString data. Compressed length:", data.d.length);
                         stored = LZString.decompressFromBase64(data.d) || LZString.decompress(data.d);
-                        if (!stored) alert("CRITICAL ERROR: LZString decompression failed! data.d length: " + data.d.length);
+                        if (stored) {
+                            console.log("[JCCB-DEBUG] LZString decompression SUCCESS. JSON length:", stored.length);
+                        } else {
+                            console.error("[JCCB-DEBUG] LZString decompression FAILED!");
+                            alert("CRITICAL ERROR: LZString decompression failed! data.d length: " + data.d.length);
+                        }
                     } else if (data._rawString) {
+                        console.log("[JCCB-DEBUG] Using _rawString path");
                         stored = data._rawString;
                     } else {
+                        console.log("[JCCB-DEBUG] Using JSON.stringify(data) path");
                         stored = JSON.stringify(data);
                     }
                 } else {
+                    console.error("[JCCB-DEBUG] CRITICAL: docSnap exists but data is empty!");
                     alert("CRITICAL ERROR: docSnap exists but data is empty!");
                 }
             } else {
+                console.error("[JCCB-DEBUG] CRITICAL: docSnap says it does NOT exist!");
                 alert("CRITICAL ERROR: docSnap says it does NOT exist!");
             }
         } else {
+            console.error("[JCCB-DEBUG] CRITICAL: docSnap is null!");
             alert("CRITICAL ERROR: docSnap is null!");
         }
 
@@ -140,7 +155,15 @@ async function loadState() {
         const localEditingLoanId = typeof state !== 'undefined' && state ? state.editingLoanId : null;
 
         if (stored) {
-            state = JSON.parse(stored);
+            const parsedFirebase = JSON.parse(stored);
+            console.log("[JCCB-DEBUG] Firebase state parsed OK.",
+                "| branches:", parsedFirebase.branches ? parsedFirebase.branches.length : 0,
+                "| valuers:", parsedFirebase.valuers ? parsedFirebase.valuers.length : 0,
+                "| products:", parsedFirebase.products ? parsedFirebase.products.length : 0,
+                "| loans:", parsedFirebase.loans ? parsedFirebase.loans.length : 0,
+                "| customers:", parsedFirebase.customers ? parsedFirebase.customers.length : 0
+            );
+            state = parsedFirebase;
             
             state.currentSession = localSession;
             state.editingLoanId = localEditingLoanId;
@@ -272,38 +295,88 @@ async function loadState() {
         // GUARANTEED FALLBACK: Even if Firebase fails entirely, check LocalStorage backup first!
         try {
             const localBackup = localStorage.getItem("jccb_full_state_backup");
+            const localBackupSize = localBackup ? localBackup.length : 0;
+            console.log("[JCCB-DEBUG] ===== FINALLY BLOCK =====");
+            console.log("[JCCB-DEBUG] jccb_full_state_backup exists in localStorage:", !!localBackup, "| size:", localBackupSize);
+            console.log("[JCCB-DEBUG] Current state BEFORE fallback check:",
+                "| branches:", state.branches ? state.branches.length : "MISSING",
+                "| valuers:", state.valuers ? state.valuers.length : "MISSING",
+                "| loans:", state.loans ? state.loans.length : "MISSING"
+            );
+
+            // --- CRITICAL CONDITION CHECK (line 275 equivalent) ---
+            const condition_localBackupExists = !!localBackup;
+            const condition_noBranches = !state.branches;
+            const condition_noValuers = !state.valuers;
+            const condition_valuersLe2 = state.valuers ? (state.valuers.length <= 2) : true;
+            const willUseFallback = condition_localBackupExists && (condition_noBranches || condition_noValuers || condition_valuersLe2);
+            console.log("[JCCB-DEBUG] LINE-275 CONDITION BREAKDOWN:",
+                "| localBackup exists:", condition_localBackupExists,
+                "| !state.branches:", condition_noBranches,
+                "| !state.valuers:", condition_noValuers,
+                "| valuers.length <= 2:", condition_valuersLe2, "(actual count:", state.valuers ? state.valuers.length : "N/A", ")",
+                "| --> WILL USE localStorage FALLBACK:", willUseFallback
+            );
+
             if (localBackup && (!state.branches || !state.valuers || state.valuers.length <= 2)) {
                 const parsedLocal = JSON.parse(localBackup);
                 if (parsedLocal && parsedLocal.valuers && parsedLocal.valuers.length > 0) {
+                    console.warn("[JCCB-DEBUG] ⚠️  OVERRIDING FIREBASE STATE WITH localStorage BACKUP!",
+                        "| localStorage valuers:", parsedLocal.valuers.length,
+                        "| localStorage loans:", parsedLocal.loans ? parsedLocal.loans.length : 0
+                    );
                     state = parsedLocal;
                     console.log("✅ Successfully restored state from BULLETPROOF LocalStorage backup!");
                 }
+            } else {
+                console.log("[JCCB-DEBUG] ✅ Firebase state kept as-is. localStorage fallback NOT triggered.");
             }
         } catch(e) {
-            console.error("Local backup failed", e);
+            console.error("[JCCB-DEBUG] Local backup failed", e);
         }
 
         if (!state.branches || !Array.isArray(state.branches) || state.branches.length === 0) {
+            console.warn("[JCCB-DEBUG] ⚠️  FORCE RESET: branches was empty/missing → using INITIAL_BRANCHES");
             state.branches = [...INITIAL_BRANCHES];
         }
         if (!state.products || !Array.isArray(state.products) || state.products.length === 0) {
+            console.warn("[JCCB-DEBUG] ⚠️  FORCE RESET: products was empty/missing → using INITIAL_PRODUCTS");
             state.products = [...INITIAL_PRODUCTS];
         }
         if (!state.valuers || !Array.isArray(state.valuers) || state.valuers.length === 0) {
+            console.warn("[JCCB-DEBUG] ⚠️  FORCE RESET: valuers was empty/missing → using INITIAL_VALUERS");
             state.valuers = [...INITIAL_VALUERS];
         }
-        
+
+        console.log("[JCCB-DEBUG] ===== loadState() FINAL STATE =====",
+            "| branches:", state.branches ? state.branches.length : 0,
+            "| valuers:", state.valuers ? state.valuers.length : 0,
+            "| loans:", state.loans ? state.loans.length : 0,
+            "| customers:", state.customers ? state.customers.length : 0
+        );
+        console.log("[JCCB-DEBUG] ========== loadState() ENDED ==========");
         hideSync();
     }
 }
 
 async function saveState(isBackground = false, throwOnError = false) {
+    console.log("[JCCB-DEBUG] ========== saveState() STARTED ==========",
+        "| isBackground:", isBackground,
+        "| throwOnError:", throwOnError
+    );
     if (!isBackground) showSync();
     try {
         const stateToUpload = { ...state };
         delete stateToUpload.currentSession;
         delete stateToUpload.editingLoanId;
         const cleanState = JSON.parse(JSON.stringify(stateToUpload));
+
+        console.log("[JCCB-DEBUG] saveState: state snapshot BEFORE photo strip:",
+            "| branches:", cleanState.branches ? cleanState.branches.length : 0,
+            "| valuers:", cleanState.valuers ? cleanState.valuers.length : 0,
+            "| loans:", cleanState.loans ? cleanState.loans.length : 0,
+            "| customers:", cleanState.customers ? cleanState.customers.length : 0
+        );
 
         // Strip photos before uploading to Firebase (Firestore has 1MB limit)
         // Photos are saved separately to localStorage
@@ -328,15 +401,18 @@ async function saveState(isBackground = false, throwOnError = false) {
         // To bypass Firestore's 20,000 field limit, we must ALWAYS compress the JSON into a single string
         const rawJson = JSON.stringify(cleanState);
         const byteSize = new Blob([rawJson]).size;
+        console.log("[JCCB-DEBUG] saveState: rawJson size (bytes):", byteSize, "(", (byteSize/1024).toFixed(1), "KB )",
+            byteSize > 900000 ? "⚠️ APPROACHING 1MB FIRESTORE LIMIT!" : "✅ within limit"
+        );
         
         const docPayload = {};
         try {
             const compressed = LZString.compressToBase64(rawJson);
             docPayload._compressed = true;
             docPayload.d = compressed;
-            console.log(`Payload compressed to ${compressed.length} bytes`);
+            console.log("[JCCB-DEBUG] saveState: compressed size (chars):", compressed.length, "(", (compressed.length/1024).toFixed(1), "KB )");
         } catch (e) {
-            console.error("Compression failed, saving as raw string", e);
+            console.error("[JCCB-DEBUG] saveState: Compression failed, saving as raw string", e);
             docPayload._rawString = rawJson;
         }
 
@@ -346,27 +422,35 @@ async function saveState(isBackground = false, throwOnError = false) {
         // Save the full state to localStorage so it survives reloads even if Firebase is blocked
         try {
             localStorage.setItem("jccb_full_state_backup", rawJson);
+            console.log("[JCCB-DEBUG] saveState: jccb_full_state_backup written to localStorage. Length:", rawJson.length);
         } catch(e) {
-            console.warn("Could not save full state to localStorage (might be too large)", e);
+            console.warn("[JCCB-DEBUG] saveState: Could not save full state to localStorage (might be too large)", e);
         }
         
         if (!isBackground) {
+            console.log("[JCCB-DEBUG] saveState: Starting FOREGROUND Firestore write (awaiting server confirmation)...");
             await docRef.set(docPayload);
+            console.log("[JCCB-DEBUG] saveState: ✅ Foreground Firestore write RESOLVED (may still be optimistic!)");
             hideSaveBanner(); // Clear any previous warning on successful save
         } else {
+            console.log("[JCCB-DEBUG] saveState: Starting BACKGROUND Firestore write (fire-and-forget)...");
             docRef.set(docPayload)
-                .then(() => hideSaveBanner())
+                .then(() => {
+                    console.log("[JCCB-DEBUG] saveState: ✅ Background Firestore write RESOLVED.");
+                    hideSaveBanner();
+                })
                 .catch(e => {
-                    console.error("Background state save failed", e);
+                    console.error("[JCCB-DEBUG] saveState: ❌ Background Firestore write FAILED:", e.code, e.message);
                     showSaveBanner("⚠️ Data NOT saved to database! Firebase error: " + (e.message || e) + ". Please take an Excel backup now.");
                 });
         }
     } catch (e) {
-        console.error("Error saving remote state:", e.message || e);
+        console.error("[JCCB-DEBUG] saveState: ❌ EXCEPTION during saveState:", e.code, e.message, e);
         showSaveBanner("⚠️ Data NOT saved to database! Error: " + (e.message || e) + ". Please take an Excel backup now.");
         if (throwOnError) throw e;
     } finally {
         if (!isBackground) hideSync();
+        console.log("[JCCB-DEBUG] ========== saveState() ENDED ==========");
     }
 }
 
@@ -5790,17 +5874,19 @@ function importFullBackupFromExcel(file) {
     const reader = new FileReader();
     reader.onload = async function(e) {
         try {
+            console.log("[JCCB-DEBUG] ========== importFullBackupFromExcel() STARTED ==========");
             showSync();
             const data = new Uint8Array(e.target.result);
+            console.log("[JCCB-DEBUG] File size (bytes):", e.target.result.byteLength);
             // Use improved options: cellDates for proper date parsing, raw:false for formatted values
             const workbook = XLSX.read(data, { type: 'array', cellDates: true, raw: false, dense: false });
 
-            // Log all detected sheets for debugging
-            console.log("📋 Detected sheets in backup file:", workbook.SheetNames);
+            console.log("[JCCB-DEBUG] 📋 Detected sheets in backup file:", workbook.SheetNames);
 
             if (!workbook.Sheets["Branches"] || !workbook.Sheets["Loans"] || !workbook.Sheets["Products"]) {
                 throw new Error("પસંદ કરેલ ફાઇલ JCCB ગોલ્ડ લોન બેકઅપ ફાઇલ નથી અથવા તેમાં જરૂરી સીટો ગેરહાજર છે. Available sheets: " + workbook.SheetNames.join(", "));
             }
+            console.log("[JCCB-DEBUG] Required sheets check passed.");
 
             function getSheetJSON(sheetName) {
                 const sheet = workbook.Sheets[sheetName];
@@ -5835,6 +5921,7 @@ function importFullBackupFromExcel(file) {
                 code: String(r["Branch Code"] || "").padStart(2, '0'),
                 name: r["Branch Name"] || ""
             }));
+            console.log("[JCCB-DEBUG] Parsed branches:", importedBranches.length, importedBranches.map(b => b.name));
 
             // Parse Valuers
             const valuersRows = getSheetJSON("Valuers");
@@ -5845,7 +5932,7 @@ function importFullBackupFromExcel(file) {
                 address: r["Address"] || "",
                 savingsAc: String(r["Savings A/c"] || "")
             }));
-            alert("DEBUG: Parsed " + importedValuers.length + " valuers from your Excel file!");
+            console.log("[JCCB-DEBUG] Parsed valuers:", importedValuers.length, importedValuers.map(v => v.name));
 
             // Parse Products
             const productsRows = getSheetJSON("Products");
@@ -5982,6 +6069,14 @@ function importFullBackupFromExcel(file) {
             state.accountSeeds = importedAccountSeeds;
             state.lastPacketSeed = importedLastPacketSeed;
 
+            console.log("[JCCB-DEBUG] State APPLIED from Excel:",
+                "| branches:", state.branches.length,
+                "| valuers:", state.valuers.length,
+                "| products:", state.products.length,
+                "| customers:", state.customers.length,
+                "| loans:", state.loans.length
+            );
+
             // Pre-save all photos to localStorage BEFORE calling saveState
             // (saveState strips photos from Firebase to stay under the 1MB limit)
             const photosStore = {};
@@ -5994,12 +6089,16 @@ function importFullBackupFromExcel(file) {
             });
             try {
                 localStorage.setItem("jccb_photos", JSON.stringify(photosStore));
+                console.log("[JCCB-DEBUG] Photos saved to jccb_photos localStorage. Count:", Object.keys(photosStore).length);
             } catch(le) {
-                console.warn("localStorage full, some photos may not be saved locally:", le);
+                console.warn("[JCCB-DEBUG] localStorage full, some photos may not be saved locally:", le);
             }
 
+            console.log("[JCCB-DEBUG] About to call saveState() to push to Firebase...");
             // Sync with Firebase (throwOnError = true to catch failures)
             await saveState(false, true);
+            console.log("[JCCB-DEBUG] saveState() returned (NOTE: may be optimistic, not server-confirmed).");
+            console.log("[JCCB-DEBUG] Triggering location.reload()...");
 
             alert("ડેટાબેઝ સફળતાપૂર્વક રીસ્ટોર થઈ ગયો છે! પોર્ટલ હવે રીલોડ થશે.");
             location.reload();
@@ -6101,7 +6200,9 @@ document.addEventListener("DOMContentLoaded", () => {
                     alert("Gold rate for today saved and synced to all branches!");
                     updateDashboardStats();
                 } catch(e) {
-                    alert("Error saving gold rate. Try again.");
+                    const errMsg = e && (e.message || e.code || String(e)) || "Unknown error";
+                    alert("Error saving gold rate.\n\nDetails: " + errMsg + "\n\nPlease screenshot this message and contact support.");
+                    console.error("[JCCB-DEBUG] Gold rate save FAILED:", e);
                 }
             });
         }
