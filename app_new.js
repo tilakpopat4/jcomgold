@@ -6152,6 +6152,14 @@ document.addEventListener("DOMContentLoaded", () => {
           // Re-run initAuth to update branches if they were fetched from the cloud
           try { initAuth(); } catch(e){}
           try { prepareEntryForm(); } catch(e){} // Re-run to apply loaded seeds
+          
+          // Force update UI elements now that database state is fully loaded
+          try { updateDashboardStats(); } catch(e){}
+          try { renderLoanRegister(); } catch(e){}
+          try { renderCustomerMasterList(); } catch(e){}
+          try { renderBranchMasterList(); } catch(e){}
+          try { renderValuerMasterList(); } catch(e){}
+          try { renderProductMasterList(); } catch(e){}
       }).catch(e => console.error(e));
 
     initFormSubmit();
