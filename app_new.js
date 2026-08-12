@@ -112,7 +112,7 @@ async function loadState() {
                 // Handle compressed state (saved when data exceeded ~500KB)
                 if (data._compressed && data.d) {
                     console.log("📦 Loading COMPRESSED state from Firebase");
-                    stored = LZString.decompress(data.d);
+                    stored = LZString.decompressFromBase64(data.d) || LZString.decompress(data.d);
                 } else {
                     stored = JSON.stringify(data);
                 }
@@ -307,7 +307,7 @@ async function saveState(isBackground = false, throwOnError = false) {
         // Firestore limit is 1MB (1,048,576 bytes). Compress anything > 500KB to be safe.
         let docPayload;
         if (byteSize > 512000) {
-            const compressed = LZString.compress(rawJson);
+            const compressed = LZString.compressToBase64(rawJson);
             const compKb = (compressed.length / 1024).toFixed(1);
             console.log(`🗜️ Compressed to ${compKb} KB (was ${kb} KB)`);
             docPayload = { _compressed: true, d: compressed };
@@ -5639,6 +5639,44 @@ function exportFullBackupToExcel() {
         }));
 
         // 7. Seeds Sheet
+        const wb = XLSX.utils.book_new();
+        function appendSheet(dataArray, sheetName) {
+            const ws = XLSX.utils.json_to_sheet(dataArray);
+            XLSX.utils.book_append_sheet(wb, ws, sheetName);
+        }
+        
+        appendSheet(branchesData, "Branches");
+        appendSheet(valuersData, "Valuers");
+        appendSheet(productsData, "Products");
+        appendSheet(seedsData, "Seeds");
+        appendSheet(loansData, "Loans");
+        appendSheet(customersData, "Customers");
+        appendSheet(goldRatesData, "GoldRates");
+        
+        // 8. Photos Sheet
+        const photosData = [];
+        state.customers.forEach(c => {
+            if (c.photo) {
+                const chunks = c.photo.match(/.{1,30000}/g) || [];
+                const row = { "Key ID": c.custNo, "Type": "customer_master" };
+                chunks.forEach((chunk, i) => { row[`Chunk ${i+1}`] = chunk; });
+                photosData.push(row);
+            }
+        });
+        state.loans.forEach(l => {
+            if (l.custPhoto) {
+                const chunks = l.custPhoto.match(/.{1,30000}/g) || [];
+                const row = { "Key ID": l.id, "Type": "borrower_loan" };
+                chunks.forEach((chunk, i) => { row[`Chunk ${i+1}`] = chunk; });
+                photosData.push(row);
+            }
+            if (l.goldPhoto) {
+                const chunks = l.goldPhoto.match(/.{1,30000}/g) || [];
+                const row = { "Key ID": l.id, "Type": "ornaments_loan" };
+                chunks.forEach((chunk, i) => { row[`Chunk ${i+1}`] = chunk; });
+                photosData.push(row);
+            }
+        });
         
         appendSheet(photosData, "Photos");
 
