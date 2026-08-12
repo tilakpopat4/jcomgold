@@ -1976,26 +1976,35 @@ function editLoanRecord(loanId) {
     const submitBtn = form.querySelector('button[type="submit"]');
     submitBtn.innerHTML = '<i class="fa-solid fa-check-double"></i> Update Loan Entry';
 
-    // If this loan has saved charge values, load them directly (reliable).
-    // Only fall back to calculateCharges() for very old loans with no saved charges.
-    const hasSavedCharges = (loan.serviceCharge !== undefined && loan.serviceCharge !== null);
-    if (hasSavedCharges) {
-        document.getElementById("charge-share-a").value    = loan.shareA    ?? 0;
-        document.getElementById("charge-share-b").value    = loan.shareB    ?? 0;
-        document.getElementById("charge-member-fee").value = loan.memberFee ?? 0;
-        document.getElementById("charge-valuation").value  = loan.valuationCharge ?? 0;
-        document.getElementById("charge-stamp").value      = loan.stampCharge ?? 0;
-        document.getElementById("charge-service").value    = loan.serviceCharge ?? 0;
-        document.getElementById("charge-document").value   = loan.docCharge ?? 0;
-        document.getElementById("charge-insurance").value  = loan.insCharge ?? 0;
-        document.getElementById("charge-cgst").value       = loan.cgst ?? 0;
-        document.getElementById("charge-sgst").value       = loan.sgst ?? 0;
-        document.getElementById("charge-adjustment").value = loan.adjustment ?? 0;
+    // Always run calculateCharges() first — it updates category display, LTV, account no etc.
+    calculateCharges();
+
+    // Use setTimeout(0) to restore saved charges AFTER any cascading event handlers
+    // triggered by calculateCharges() have completed (e.g. isMember change → recalculate).
+    const loanSnapshot = loan; // capture reference
+    setTimeout(() => {
+        const totalSaved = (loanSnapshot.shareA || 0) + (loanSnapshot.shareB || 0) + (loanSnapshot.memberFee || 0)
+            + (loanSnapshot.valuationCharge || 0) + (loanSnapshot.stampCharge || 0) + (loanSnapshot.serviceCharge || 0)
+            + (loanSnapshot.docCharge || 0) + (loanSnapshot.insCharge || 0) + (loanSnapshot.cgst || 0) + (loanSnapshot.sgst || 0);
+
+        if (totalSaved > 0) {
+            document.getElementById("charge-share-a").value    = loanSnapshot.shareA    || 0;
+            document.getElementById("charge-share-b").value    = loanSnapshot.shareB    || 0;
+            document.getElementById("charge-member-fee").value = loanSnapshot.memberFee || 0;
+            document.getElementById("charge-valuation").value  = loanSnapshot.valuationCharge || 0;
+            document.getElementById("charge-stamp").value      = loanSnapshot.stampCharge || 0;
+            document.getElementById("charge-service").value    = loanSnapshot.serviceCharge || 0;
+            document.getElementById("charge-document").value   = loanSnapshot.docCharge || 0;
+            document.getElementById("charge-insurance").value  = loanSnapshot.insCharge || 0;
+            document.getElementById("charge-cgst").value       = loanSnapshot.cgst || 0;
+            document.getElementById("charge-sgst").value       = loanSnapshot.sgst || 0;
+            document.getElementById("charge-adjustment").value = loanSnapshot.adjustment || 0;
+        } else {
+            // No saved charges — run calculateCharges() fresh now
+            calculateCharges();
+        }
         updateTotals();
-    } else {
-        // Old loan — no saved charges, calculate fresh
-        calculateCharges();
-    }
+    }, 50);
 }
 
 function exportLoansToCSV() {
