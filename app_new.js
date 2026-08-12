@@ -5495,6 +5495,22 @@ window.deleteCustomerProfile = deleteCustomerProfile;
 
 // ==================== BACKUP CENTER INITIALIZATION ====================
 function initBackupCenter() {
+    document.getElementById("btn-test-firebase")?.addEventListener("click", async () => {
+        alert("Testing connection to Firebase Database...");
+        try {
+            const testRef = db.collection("jccb").doc("connection_test");
+            await testRef.set({ timestamp: Date.now() });
+            const snap = await testRef.get();
+            if (snap.exists) {
+                alert("✅ SUCCESS: The portal is fully connected to Firebase! Data read/write is working perfectly.");
+            } else {
+                alert("⚠️ WARNING: Data was written, but could not be read back. Check Firebase Rules.");
+            }
+        } catch (e) {
+            alert("❌ FIREBASE CONNECTION FAILED: " + (e.message || e) + "\n\nIf the error says 'Missing or insufficient permissions', your Firebase Security Rules have expired and you need to update them in the Firebase Console. If it says 'offline', your network is blocking it.");
+        }
+    });
+
     const btnSelect = document.getElementById("btn-ho-backup-select");
     const btnManual = document.getElementById("btn-ho-backup-manual");
 
